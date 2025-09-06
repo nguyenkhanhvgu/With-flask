@@ -16,6 +16,13 @@
             </div>
         </header>
         
+        {% if post.image_filename %}
+        <div class="post-image">
+            <img src="{{ url_for('static', filename='uploads/posts/' + post.image_filename) }}" 
+                 alt="{{ post.title }}" style="width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; margin-bottom: 1.5rem;">
+        </div>
+        {% endif %}
+        
         <div class="post-content">
             {{ post.content|nl2br|safe }}
         </div>
@@ -44,19 +51,72 @@
             <p class="no-comments">No comments yet. Be the first to comment!</p>
         {% endif %}
         
+        <!-- Add Comment Form -->
+        {% if current_user.is_authenticated %}
         <div class="add-comment">
             <h4>Add a Comment</h4>
-            <p><em>Note: In a real application, you would have a comment form here with user authentication.</em></p>
-            <div class="demo-info">
-                <strong>What this demonstrates:</strong>
-                <ul>
-                    <li>One-to-Many relationship (Post → Comments)</li>
-                    <li>Foreign key relationships</li>
-                    <li>Querying related data</li>
-                    <li>Template loops and conditionals</li>
-                </ul>
-            </div>
+            <form method="POST" class="comment-form">
+                <div class="form-group">
+                    <label for="content">Your Comment:</label>
+                    <textarea id="content" name="content" rows="4" required 
+                              placeholder="Share your thoughts about this post..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Post Comment</button>
+                </div>
+            </form>
         </div>
+        {% else %}
+        <div class="login-prompt">
+            <h4>Want to comment?</h4>
+            <p><a href="{{ url_for('login') }}">Login</a> or <a href="{{ url_for('register') }}">Register</a> to leave a comment.</p>
+        </div>
+        {% endif %}
     </section>
 </div>
+
+<style>
+.comment-form {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.comment-form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.comment-form .form-actions {
+    margin-top: 1rem;
+}
+
+.login-prompt {
+    background: #e9ecef;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.login-prompt h4 {
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.login-prompt a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-prompt a:hover {
+    text-decoration: underline;
+}
+</style>
 {% endblock %}

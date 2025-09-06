@@ -2,12 +2,14 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from PIL import Image
 import os
 import uuid
+import threading
 
 # Create Flask application instance
 app = Flask(__name__)
@@ -27,6 +29,15 @@ app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['UPLOAD_PATH'] = os.path.join(basedir, 'static', 'uploads')
 
+# Email configuration
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'Flask Blog <noreply@flaskblog.com>')
+app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'admin@flaskblog.com')
+
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "blog.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -34,6 +45,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize database and migration
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+# Initialize Flask-Mail
+mail = Mail(app)
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -92,6 +106,67 @@ def save_uploaded_file(file, upload_type='posts'):
         
         return unique_filename
     return None
+
+# Email utility functions
+def send_async_email(app, msg):
+    """Send email asynchronously"""
+    with app.app_context():
+        try:
+            mail.send(msg)
+            print(f"Email sent successfully to {msg.recipients}")
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+
+def send_email(subject, recipients, text_body, html_body=None):
+    """Send email with optional HTML body"""
+    if not app.config['MAIL_USERNAME']:
+        print("Email not configured - skipping email notification")
+        return
+    
+    msg = Message(subject, recipients=recipients)
+    msg.body = text_body
+    if html_body:
+        msg.html = html_body
+    
+    # Send email in background thread
+    thread = threading.Thread(target=send_async_email, args=(app, msg))
+    thread.start()
+
+def send_comment_notification(post, comment):
+    """Send email notification to post author when someone comments"""
+    if post.author.email and post.author.email != comment.author.email:
+        subject = f'New comment on your post: "{post.title}"'
+        
+        text_body = f'''Hi {post.author.username},
+
+Someone left a comment on your post "{post.title}".
+
+Comment by: {comment.author.username}
+Comment: {comment.content[:200]}{'...' if len(comment.content) > 200 else ''}
+
+View the full comment and reply at: {url_for('post_detail', id=post.id, _external=True)}
+
+Best regards,
+Flask Blog Team
+'''
+        
+        html_body = f'''
+        <h3>New comment on your post!</h3>
+        <p>Hi <strong>{post.author.username}</strong>,</p>
+        <p>Someone left a comment on your post "<strong>{post.title}</strong>".</p>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
+            <p><strong>Comment by:</strong> {comment.author.username}</p>
+            <p><strong>Comment:</strong></p>
+            <p style="font-style: italic;">"{comment.content[:200]}{'...' if len(comment.content) > 200 else ''}"</p>
+        </div>
+        
+        <p><a href="{url_for('post_detail', id=post.id, _external=True)}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Comment & Reply</a></p>
+        
+        <p>Best regards,<br>Flask Blog Team</p>
+        '''
+        
+        send_email(subject, [post.author.email], text_body, html_body)
 
 # Database Models
 class User(db.Model, UserMixin):
@@ -355,10 +430,31 @@ def search():
     
     return render_template('search_results.html', title=f'Search Results for "{query}"', posts=posts, query=query)
 
-@app.route('/post/<int:id>')
+@app.route('/post/<int:id>', methods=['GET', 'POST'])
 def post_detail(id):
-    """Display single post with comments"""
+    """Display single post with comments and handle new comments"""
     post = Post.query.get_or_404(id)
+    
+    if request.method == 'POST' and current_user.is_authenticated:
+        content = request.form.get('content')
+        if content and content.strip():
+            # Create new comment
+            comment = Comment(
+                content=content.strip(),
+                post_id=post.id,
+                user_id=current_user.id
+            )
+            db.session.add(comment)
+            db.session.commit()
+            
+            # Send email notification to post author
+            send_comment_notification(post, comment)
+            
+            flash('Your comment has been added!', 'success')
+            return redirect(url_for('post_detail', id=id))
+        else:
+            flash('Please enter a comment.', 'error')
+    
     comments = Comment.query.filter_by(post_id=id).order_by(Comment.created_at.desc()).all()
     return render_template('post_detail.html', title=post.title, post=post, comments=comments)
 
