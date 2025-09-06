@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="auth-container">
+        <h1>Login to Your Account</h1>
+        
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required autofocus>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="remember" name="remember">
+                <label for="remember">Remember me</label>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-full">Login</button>
+        </form>
+        
+        <div class="auth-links">
+            <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+        </div>
+        
+        <div class="auth-info">
+            <h3>About Authentication</h3>
+            <p>This login system demonstrates:</p>
+            <ul>
+                <li><strong>Password Hashing:</strong> Passwords are securely hashed using Werkzeug</li>
+                <li><strong>Session Management:</strong> Flask-Login manages user sessions</li>
+                <li><strong>Remember Me:</strong> Optional persistent login</li>
+                <li><strong>Route Protection:</strong> Some pages require authentication</li>
+                <li><strong>Flash Messages:</strong> User feedback for login attempts</li>
+            </ul>
+            
+            <div class="demo-accounts">
+                <h4>Demo Accounts (after initialization):</h4>
+                <p>Username: <code>alice</code> | Password: <code>password123</code></p>
+                <p>Username: <code>bob</code> | Password: <code>password123</code></p>
+                <p>Username: <code>charlie</code> | Password: <code>password123</code></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

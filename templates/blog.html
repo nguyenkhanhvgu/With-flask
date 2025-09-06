@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="blog-header">
+        <h1>Blog Posts</h1>
+        <a href="{{ url_for('create_post') }}" class="btn btn-primary">Create New Post</a>
+    </div>
+    
+    {% if posts.items %}
+        <div class="posts-container">
+            {% for post in posts.items %}
+            <article class="post-card">
+                <h2><a href="{{ url_for('post_detail', id=post.id) }}">{{ post.title }}</a></h2>
+                <div class="post-meta">
+                    <span class="author">By <a href="{{ url_for('user_profile', username=post.author.username) }}">{{ post.author.username }}</a></span>
+                    <span class="date">{{ post.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                    {% if post.category %}
+                    <span class="category">
+                        <a href="{{ url_for('category_posts', id=post.category.id) }}">{{ post.category.name }}</a>
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="post-content">
+                    <p>{{ post.content[:300] }}{% if post.content|length > 300 %}...{% endif %}</p>
+                </div>
+                <div class="post-actions">
+                    <a href="{{ url_for('post_detail', id=post.id) }}" class="btn btn-primary">Read More</a>
+                    <span class="comment-count">{{ post.comments|length }} comments</span>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if posts.pages > 1 %}
+        <div class="pagination">
+            {% if posts.has_prev %}
+                <a href="{{ url_for('blog', page=posts.prev_num) }}" class="btn btn-secondary">Previous</a>
+            {% endif %}
+            
+            {% for page in posts.iter_pages() %}
+                {% if page %}
+                    {% if page != posts.page %}
+                        <a href="{{ url_for('blog', page=page) }}" class="btn btn-secondary">{{ page }}</a>
+                    {% else %}
+                        <span class="btn btn-primary current-page">{{ page }}</span>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            
+            {% if posts.has_next %}
+                <a href="{{ url_for('blog', page=posts.next_num) }}" class="btn btn-secondary">Next</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="no-posts">
+            <h3>No posts yet!</h3>
+            <p>Be the first to create a blog post.</p>
+            <a href="{{ url_for('create_post') }}" class="btn btn-primary">Create Your First Post</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

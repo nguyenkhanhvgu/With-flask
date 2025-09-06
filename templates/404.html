@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="error-section">
+    <div class="error-content">
+        <h1 class="error-code">404</h1>
+        <h2>Page Not Found</h2>
+        <p>Sorry, the page you are looking for doesn't exist.</p>
+        <a href="{{ url_for('home') }}" class="btn btn-primary">Go Home</a>
+    </div>
+    
+    <div class="error-info">
+        <h3>About Error Handling</h3>
+        <p>This page demonstrates Flask's error handling capabilities using the <code>@app.errorhandler(404)</code> decorator.</p>
+    </div>
+</div>
+{% endblock %}

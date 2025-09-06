@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <h1>Users</h1>
+    
+    {% if users %}
+        <div class="users-grid">
+            {% for user in users %}
+            <div class="user-card">
+                <div class="user-avatar">
+                    <span class="avatar-letter">{{ user.username[0].upper() }}</span>
+                </div>
+                <div class="user-info">
+                    <h3><a href="{{ url_for('user_profile', username=user.username) }}">{{ user.username }}</a></h3>
+                    <p class="user-email">{{ user.email }}</p>
+                    <div class="user-stats">
+                        <span class="stat">{{ user.posts|length }} posts</span>
+                        <span class="stat">{{ user.comments|length }} comments</span>
+                    </div>
+                    <div class="user-joined">
+                        <small>Joined {{ user.created_at.strftime('%B %Y') }}</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-users">
+            <h3>No users yet!</h3>
+            <p>Initialize the database to create sample users.</p>
+            <a href="{{ url_for('init_db') }}" class="btn btn-primary">Initialize Sample Data</a>
+        </div>
+    {% endif %}
+    
+    <div class="database-info">
+        <h3>Database Concept: User Relationships</h3>
+        <p>The User model demonstrates multiple <strong>One-to-Many</strong> relationships:</p>
+        <ul>
+            <li><strong>User → Posts:</strong> One user can write many posts</li>
+            <li><strong>User → Comments:</strong> One user can write many comments</li>
+            <li>We use SQLAlchemy's <code>backref</code> to create reverse relationships</li>
+            <li>The <code>cascade='all, delete-orphan'</code> ensures related records are cleaned up</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

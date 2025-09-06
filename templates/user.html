@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="profile-content">
+        <div class="profile-card">
+            <div class="profile-avatar">
+                <span class="avatar-letter">{{ user.username[0].upper() }}</span>
+            </div>
+            <h1>{{ user.username.title() }}</h1>
+            <p class="profile-email">{{ user.email }}</p>
+            <div class="profile-stats">
+                <div class="stat">
+                    <span class="stat-number">{{ posts|length }}</span>
+                    <span class="stat-label">Posts</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">{{ user.comments|length }}</span>
+                    <span class="stat-label">Comments</span>
+                </div>
+            </div>
+            <p class="join-date">Joined {{ user.created_at.strftime('%B %Y') }}</p>
+        </div>
+        
+        <div class="profile-content-main">
+            <h2>Posts by {{ user.username }}</h2>
+            
+            {% if posts %}
+                <div class="user-posts">
+                    {% for post in posts %}
+                    <article class="post-card">
+                        <h3><a href="{{ url_for('post_detail', id=post.id) }}">{{ post.title }}</a></h3>
+                        <div class="post-meta">
+                            <span class="date">{{ post.created_at.strftime('%B %d, %Y') }}</span>
+                            {% if post.category %}
+                            <span class="category">
+                                <a href="{{ url_for('category_posts', id=post.category.id) }}">{{ post.category.name }}</a>
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="post-excerpt">{{ post.content[:150] }}{% if post.content|length > 150 %}...{% endif %}</p>
+                        <div class="post-stats">
+                            <span>{{ post.comments|length }} comments</span>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-posts">
+                    <p>{{ user.username }} hasn't written any posts yet.</p>
+                </div>
+            {% endif %}
+            
+            <div class="database-demo-info">
+                <h3>Database Relationships Demonstrated</h3>
+                <p>This page shows how database relationships work:</p>
+                <ul>
+                    <li><strong>User Model:</strong> Retrieved by username using <code>filter_by()</code></li>
+                    <li><strong>Related Posts:</strong> Accessed through the relationship <code>user.posts</code></li>
+                    <li><strong>Post Categories:</strong> Each post can have an optional category</li>
+                    <li><strong>Comment Count:</strong> Counted through the post's comments relationship</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

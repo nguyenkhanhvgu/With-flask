@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <h1>Categories</h1>
+    
+    {% if categories %}
+        <div class="categories-grid">
+            {% for category in categories %}
+            <div class="category-card">
+                <h3><a href="{{ url_for('category_posts', id=category.id) }}">{{ category.name }}</a></h3>
+                {% if category.description %}
+                    <p class="category-description">{{ category.description }}</p>
+                {% endif %}
+                <div class="category-stats">
+                    <span class="post-count">{{ category.posts|length }} posts</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-categories">
+            <h3>No categories yet!</h3>
+            <p>Categories help organize blog posts by topic.</p>
+            <a href="{{ url_for('init_db') }}" class="btn btn-primary">Initialize Sample Data</a>
+        </div>
+    {% endif %}
+    
+    <div class="database-info">
+        <h3>Database Concept: Categories</h3>
+        <p>Categories demonstrate a <strong>One-to-Many</strong> relationship where:</p>
+        <ul>
+            <li>One category can have many posts</li>
+            <li>Each post belongs to zero or one category</li>
+            <li>The foreign key <code>category_id</code> in the Post table references the Category table</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

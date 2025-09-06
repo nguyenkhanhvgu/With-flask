@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <h1>Category: {{ category.name }}</h1>
+    
+    {% if category.description %}
+        <p class="category-description">{{ category.description }}</p>
+    {% endif %}
+    
+    {% if posts %}
+        <div class="posts-container">
+            {% for post in posts %}
+            <article class="post-card">
+                <h2><a href="{{ url_for('post_detail', id=post.id) }}">{{ post.title }}</a></h2>
+                <div class="post-meta">
+                    <span class="author">By <a href="{{ url_for('user_profile', username=post.author.username) }}">{{ post.author.username }}</a></span>
+                    <span class="date">{{ post.created_at.strftime('%B %d, %Y') }}</span>
+                </div>
+                <div class="post-content">
+                    <p>{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+                </div>
+                <a href="{{ url_for('post_detail', id=post.id) }}" class="btn btn-primary">Read More</a>
+            </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-posts">
+            <h3>No posts in this category yet!</h3>
+            <p>Be the first to create a post in the "{{ category.name }}" category.</p>
+            <a href="{{ url_for('create_post') }}" class="btn btn-primary">Create Post</a>
+        </div>
+    {% endif %}
+    
+    <div class="navigation">
+        <a href="{{ url_for('categories') }}" class="btn btn-secondary">← Back to Categories</a>
+        <a href="{{ url_for('blog') }}" class="btn btn-secondary">View All Posts</a>
+    </div>
+</div>
+{% endblock %}

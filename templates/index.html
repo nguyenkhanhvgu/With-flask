@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero-section">
+    <h1>Welcome to Flask Learning!</h1>
+    <p class="hero-text">Learn Python web development with Flask framework and databases</p>
+    <div class="hero-buttons">
+        <a href="{{ url_for('about') }}" class="btn btn-primary">Get Started</a>
+        <a href="{{ url_for('init_db') }}" class="btn btn-secondary">Initialize Database</a>
+    </div>
+</div>
+
+{% if posts %}
+<div class="recent-posts-section">
+    <h2>Recent Blog Posts</h2>
+    <div class="posts-grid">
+        {% for post in posts %}
+        <div class="post-card">
+            <h3><a href="{{ url_for('post_detail', id=post.id) }}">{{ post.title }}</a></h3>
+            <div class="post-meta">
+                <span class="author">By {{ post.author.username }}</span>
+                <span class="date">{{ post.created_at.strftime('%B %d, %Y') }}</span>
+                {% if post.category %}
+                <span class="category">{{ post.category.name }}</span>
+                {% endif %}
+            </div>
+            <p class="post-excerpt">{{ post.content[:150] }}{% if post.content|length > 150 %}...{% endif %}</p>
+            <a href="{{ url_for('post_detail', id=post.id) }}" class="read-more">Read More</a>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="view-all">
+        <a href="{{ url_for('blog') }}" class="btn btn-primary">View All Posts</a>
+    </div>
+</div>
+{% endif %}
+
+<div class="features-section">
+    <h2>What You'll Learn</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <h3>🚀 Flask Basics</h3>
+            <p>Understanding routes, templates, and the Flask application structure</p>
+        </div>
+        <div class="feature-card">
+            <h3>🎨 Template Engine</h3>
+            <p>Using Jinja2 templates for dynamic HTML generation</p>
+        </div>
+        <div class="feature-card">
+            <h3>📝 Forms & Data</h3>
+            <p>Handling user input, forms, and data processing</p>
+        </div>
+        <div class="feature-card">
+            <h3>🗄️ Database Integration</h3>
+            <p>SQLAlchemy ORM, database design, and CRUD operations</p>
+        </div>
+        <div class="feature-card">
+            <h3>🔒 Sessions</h3>
+            <p>Managing user sessions and state across requests</p>
+        </div>
+        <div class="feature-card">
+            <h3>⚡ Advanced Features</h3>
+            <p>Pagination, relationships, and database migrations</p>
+        </div>
+    </div>
+</div>
+
+<div class="demo-section">
+    <h2>Database Examples</h2>
+    <ul class="demo-links">
+        <li><a href="{{ url_for('blog') }}">View Blog Posts</a></li>
+        <li><a href="{{ url_for('create_post') }}">Create New Post</a></li>
+        <li><a href="{{ url_for('categories') }}">Browse Categories</a></li>
+        <li><a href="{{ url_for('users') }}">View Users</a></li>
+        <li><a href="{{ url_for('user_profile', username='alice') }}">User Profile Example</a></li>
+        <li><a href="/nonexistent">404 Error Page Demo</a></li>
+    </ul>
+</div>
+{% endblock %}

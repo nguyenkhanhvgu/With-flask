@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="error-section">
+    <div class="error-content">
+        <h1 class="error-code">500</h1>
+        <h2>Internal Server Error</h2>
+        <p>Something went wrong on our end. Please try again later.</p>
+        <a href="{{ url_for('home') }}" class="btn btn-primary">Go Home</a>
+    </div>
+    
+    <div class="error-info">
+        <h3>About Server Errors</h3>
+        <p>This page demonstrates handling of 500 server errors using the <code>@app.errorhandler(500)</code> decorator.</p>
+    </div>
+</div>
+{% endblock %}
