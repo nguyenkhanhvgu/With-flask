@@ -800,6 +800,10 @@ def internal_server_error(e):
     return render_template('500.html', title='Server Error'), 500
 
 if __name__ == '__main__':
+    # Register API Blueprint
+    from api_simple import api
+    app.register_blueprint(api)
+    
     # Create database tables
     with app.app_context():
         db.create_all()
