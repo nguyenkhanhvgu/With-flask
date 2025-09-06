@@ -18,8 +18,17 @@
                 <li><a href="{{ url_for('about') }}">About</a></li>
                 <li><a href="{{ url_for('contact') }}">Contact</a></li>
                 
+                <!-- Search Form -->
+                <li class="search-form">
+                    <form method="GET" action="{{ url_for('search') }}" style="display: inline;">
+                        <input type="text" name="q" placeholder="Search posts..." value="{{ request.args.get('q', '') }}" style="padding: 5px; margin-right: 5px;">
+                        <button type="submit" style="padding: 5px 10px;">Search</button>
+                    </form>
+                </li>
+                
                 {% if current_user.is_authenticated %}
                     <li><a href="{{ url_for('create_post') }}">Create Post</a></li>
+                    <li><a href="{{ url_for('profile') }}">Profile</a></li>
                     <li class="user-menu">
                         <span class="username">{{ current_user.username }}</span>
                         <a href="{{ url_for('logout') }}">Logout</a>

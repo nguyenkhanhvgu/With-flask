@@ -125,12 +125,13 @@ Read `DATABASE_GUIDE.md` for detailed information about:
 ## Next Steps
 
 This project provides a solid foundation for Flask development. Consider expanding it with:
-- User authentication (login/logout)
-- User registration
-- Password hashing
+- ✅ User authentication (login/logout)
+- ✅ User registration  
+- ✅ Password hashing
 - CSRF protection
 - RESTful APIs
-- File uploads
+- ✅ File uploads (images for posts and user avatars)
+- ✅ Search functionality across posts
 - Email integration
 - Unit and integration tests
 - Deployment configurations

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <h1>{{ title }}</h1>
+    
+    {% if query %}
+        <p class="search-info">Showing results for: "<strong>{{ query }}</strong>"</p>
+        
+        {% if posts.items %}
+            <div class="posts-grid">
+                {% for post in posts.items %}
+                <article class="post-card">
+                    {% if post.image_filename %}
+                    <div class="post-image">
+                        <img src="{{ url_for('static', filename='uploads/posts/' + post.image_filename) }}" 
+                             alt="{{ post.title }}" style="width: 100%; height: 200px; object-fit: cover;">
+                    </div>
+                    {% endif %}
+                    
+                    <div class="post-content">
+                        <h2><a href="{{ url_for('post_detail', id=post.id) }}">{{ post.title }}</a></h2>
+                        <div class="post-meta">
+                            <span class="author">By {{ post.author.username }}</span>
+                            <span class="date">{{ post.created_at.strftime('%B %d, %Y') }}</span>
+                            {% if post.category %}
+                            <span class="category">in {{ post.category.name }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="post-excerpt">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+                        <a href="{{ url_for('post_detail', id=post.id) }}" class="read-more">Read More</a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if posts.pages > 1 %}
+            <div class="pagination">
+                {% if posts.has_prev %}
+                    <a href="{{ url_for('search', q=query, page=posts.prev_num) }}" class="pagination-link">&laquo; Previous</a>
+                {% endif %}
+                
+                {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                    {% if page_num %}
+                        {% if page_num != posts.page %}
+                            <a href="{{ url_for('search', q=query, page=page_num) }}" class="pagination-link">{{ page_num }}</a>
+                        {% else %}
+                            <span class="pagination-current">{{ page_num }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="pagination-ellipsis">...</span>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if posts.has_next %}
+                    <a href="{{ url_for('search', q=query, page=posts.next_num) }}" class="pagination-link">Next &raquo;</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="no-results">
+                <h3>No posts found</h3>
+                <p>No posts match your search criteria. Try different keywords or <a href="{{ url_for('blog') }}">browse all posts</a>.</p>
+            </div>
+        {% endif %}
+    {% else %}
+        <p>Please enter a search term.</p>
+    {% endif %}
+</div>
+{% endblock %}

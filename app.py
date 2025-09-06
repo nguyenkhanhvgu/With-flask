@@ -3,8 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
+from PIL import Image
 import os
+import uuid
 
 # Create Flask application instance
 app = Flask(__name__)
@@ -18,8 +21,13 @@ app.config['SESSION_COOKIE_NAME'] = 'flask_session'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
-# Database configuration
+# File upload configuration
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
 basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['UPLOAD_PATH'] = os.path.join(basedir, 'static', 'uploads')
+
+# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "blog.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -51,6 +59,40 @@ def nl2br_filter(text):
 
 app.jinja_env.filters['nl2br'] = nl2br_filter
 
+# File upload utility functions
+def allowed_file(filename):
+    """Check if the file extension is allowed"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in [ext[1:] for ext in app.config['UPLOAD_EXTENSIONS']]
+
+def save_uploaded_file(file, upload_type='posts'):
+    """Save uploaded file with unique name and return filename"""
+    if file and allowed_file(file.filename):
+        # Generate unique filename
+        file_ext = os.path.splitext(secure_filename(file.filename))[1]
+        unique_filename = str(uuid.uuid4()) + file_ext
+        
+        # Create upload directory if it doesn't exist
+        upload_dir = os.path.join(app.config['UPLOAD_PATH'], upload_type)
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Save original file
+        file_path = os.path.join(upload_dir, unique_filename)
+        file.save(file_path)
+        
+        # Resize image if it's too large
+        try:
+            with Image.open(file_path) as img:
+                # Resize for posts (max 800px width) or avatars (max 300px)
+                max_size = (300, 300) if upload_type == 'avatars' else (800, 600)
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
+                img.save(file_path, optimize=True, quality=85)
+        except Exception as e:
+            print(f"Error resizing image: {e}")
+        
+        return unique_filename
+    return None
+
 # Database Models
 class User(db.Model, UserMixin):
     """User model for blog authors and commenters"""
@@ -58,6 +100,7 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    avatar_filename = db.Column(db.String(255), nullable=True, default='default-avatar.png')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     
@@ -97,6 +140,7 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
+    image_filename = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -221,6 +265,31 @@ def logout():
     flash(f'Goodbye, {username}! You have been logged out.', 'info')
     return redirect(url_for('home'))
 
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    """User profile page with avatar upload"""
+    if request.method == 'POST':
+        avatar_file = request.files.get('avatar')
+        
+        if avatar_file and avatar_file.filename:
+            # Save new avatar
+            avatar_filename = save_uploaded_file(avatar_file, 'avatars')
+            if avatar_filename:
+                # Update user's avatar
+                current_user.avatar_filename = avatar_filename
+                db.session.commit()
+                flash('Avatar updated successfully!', 'success')
+            else:
+                flash('Invalid image file. Please upload JPG, PNG, or GIF files only.', 'error')
+        
+        return redirect(url_for('profile'))
+    
+    # Get user's posts
+    user_posts = Post.query.filter_by(user_id=current_user.id).order_by(Post.created_at.desc()).all()
+    
+    return render_template('profile.html', title='My Profile', user=current_user, posts=user_posts)
+
 @app.route('/about')
 def about():
     """Render the about page"""
@@ -247,10 +316,44 @@ def contact():
 def blog():
     """Display all blog posts"""
     page = request.args.get('page', 1, type=int)
-    posts = Post.query.order_by(Post.created_at.desc()).paginate(
-        page=page, per_page=5, error_out=False
-    )
-    return render_template('blog.html', title='Blog', posts=posts)
+    search_query = request.args.get('search', '')
+    
+    if search_query:
+        # Search in title and content
+        posts = Post.query.filter(
+            db.or_(
+                Post.title.contains(search_query),
+                Post.content.contains(search_query)
+            )
+        ).order_by(Post.created_at.desc()).paginate(
+            page=page, per_page=5, error_out=False
+        )
+    else:
+        posts = Post.query.order_by(Post.created_at.desc()).paginate(
+            page=page, per_page=5, error_out=False
+        )
+    
+    return render_template('blog.html', title='Blog', posts=posts, search_query=search_query)
+
+@app.route('/search')
+def search():
+    """Search posts by title and content"""
+    query = request.args.get('q', '')
+    page = request.args.get('page', 1, type=int)
+    
+    if query:
+        posts = Post.query.filter(
+            db.or_(
+                Post.title.contains(query),
+                Post.content.contains(query)
+            )
+        ).order_by(Post.created_at.desc()).paginate(
+            page=page, per_page=10, error_out=False
+        )
+    else:
+        posts = Post.query.filter(Post.id == -1).paginate(page=1, per_page=10, error_out=False)  # Empty result
+    
+    return render_template('search_results.html', title=f'Search Results for "{query}"', posts=posts, query=query)
 
 @app.route('/post/<int:id>')
 def post_detail(id):
@@ -273,12 +376,23 @@ def create_post():
         title = request.form.get('title')
         content = request.form.get('content')
         category_id = request.form.get('category_id')
+        image_file = request.files.get('image')
         
         if title and content:
+            # Handle image upload
+            image_filename = None
+            if image_file and image_file.filename:
+                image_filename = save_uploaded_file(image_file, 'posts')
+                if not image_filename:
+                    flash('Invalid image file. Please upload JPG, PNG, or GIF files only.', 'error')
+                    categories = Category.query.all()
+                    return render_template('create_post.html', title='Create Post', categories=categories)
+            
             # Use the current logged-in user
             post = Post(
                 title=title,
                 content=content,
+                image_filename=image_filename,
                 user_id=current_user.id,
                 category_id=category_id if category_id else None
             )

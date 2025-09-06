@@ -4,7 +4,7 @@
 <div class="content-section">
     <h1>Create New Post</h1>
     
-    <form method="POST" class="post-form">
+    <form method="POST" enctype="multipart/form-data" class="post-form">
         <div class="form-group">
             <label for="title">Post Title:</label>
             <input type="text" id="title" name="title" required maxlength="200">
@@ -18,6 +18,12 @@
                 <option value="{{ category.id }}">{{ category.name }}</option>
                 {% endfor %}
             </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="image">Featured Image (optional):</label>
+            <input type="file" id="image" name="image" accept="image/*">
+            <small class="form-text">Supported formats: JPG, PNG, GIF, WebP (max 16MB)</small>
         </div>
         
         <div class="form-group">

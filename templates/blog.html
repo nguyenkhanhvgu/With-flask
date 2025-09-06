@@ -11,22 +11,31 @@
         <div class="posts-container">
             {% for post in posts.items %}
             <article class="post-card">
-                <h2><a href="{{ url_for('post_detail', id=post.id) }}">{{ post.title }}</a></h2>
-                <div class="post-meta">
-                    <span class="author">By <a href="{{ url_for('user_profile', username=post.author.username) }}">{{ post.author.username }}</a></span>
-                    <span class="date">{{ post.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
-                    {% if post.category %}
-                    <span class="category">
-                        <a href="{{ url_for('category_posts', id=post.category.id) }}">{{ post.category.name }}</a>
-                    </span>
-                    {% endif %}
+                {% if post.image_filename %}
+                <div class="post-image">
+                    <img src="{{ url_for('static', filename='uploads/posts/' + post.image_filename) }}" 
+                         alt="{{ post.title }}" style="width: 100%; height: 250px; object-fit: cover;">
                 </div>
-                <div class="post-content">
-                    <p>{{ post.content[:300] }}{% if post.content|length > 300 %}...{% endif %}</p>
-                </div>
-                <div class="post-actions">
-                    <a href="{{ url_for('post_detail', id=post.id) }}" class="btn btn-primary">Read More</a>
-                    <span class="comment-count">{{ post.comments|length }} comments</span>
+                {% endif %}
+                
+                <div class="post-body">
+                    <h2><a href="{{ url_for('post_detail', id=post.id) }}">{{ post.title }}</a></h2>
+                    <div class="post-meta">
+                        <span class="author">By <a href="{{ url_for('user_profile', username=post.author.username) }}">{{ post.author.username }}</a></span>
+                        <span class="date">{{ post.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        {% if post.category %}
+                        <span class="category">
+                            <a href="{{ url_for('category_posts', id=post.category.id) }}">{{ post.category.name }}</a>
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="post-content">
+                        <p>{{ post.content[:300] }}{% if post.content|length > 300 %}...{% endif %}</p>
+                    </div>
+                    <div class="post-actions">
+                        <a href="{{ url_for('post_detail', id=post.id) }}" class="btn btn-primary">Read More</a>
+                        <span class="comment-count">{{ post.comments|length }} comments</span>
+                    </div>
                 </div>
             </article>
             {% endfor %}
