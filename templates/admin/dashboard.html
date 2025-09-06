@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="admin-header">
+        <h1>📊 Admin Dashboard</h1>
+        <p class="admin-subtitle">Welcome, {{ current_user.username }}! Here's your site overview.</p>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-content">
+                <h3>{{ total_users }}</h3>
+                <p>Total Users</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-content">
+                <h3>{{ total_posts }}</h3>
+                <p>Total Posts</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">💬</div>
+            <div class="stat-content">
+                <h3>{{ total_comments }}</h3>
+                <p>Total Comments</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">📁</div>
+            <div class="stat-content">
+                <h3>{{ total_categories }}</h3>
+                <p>Categories</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Admin Navigation -->
+    <div class="admin-nav">
+        <h2>Management Sections</h2>
+        <div class="admin-nav-grid">
+            <a href="{{ url_for('admin_users') }}" class="admin-nav-item">
+                <div class="nav-icon">👥</div>
+                <h3>Manage Users</h3>
+                <p>View, activate/deactivate users and manage admin privileges</p>
+            </a>
+            
+            <a href="{{ url_for('admin_posts') }}" class="admin-nav-item">
+                <div class="nav-icon">📝</div>
+                <h3>Manage Posts</h3>
+                <p>Moderate blog posts and content</p>
+            </a>
+            
+            <a href="{{ url_for('admin_comments') }}" class="admin-nav-item">
+                <div class="nav-icon">💬</div>
+                <h3>Manage Comments</h3>
+                <p>Review and moderate user comments</p>
+            </a>
+            
+            <a href="{{ url_for('admin_categories') }}" class="admin-nav-item">
+                <div class="nav-icon">📁</div>
+                <h3>Manage Categories</h3>
+                <p>Create, edit and organize post categories</p>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="recent-activity">
+        <div class="activity-section">
+            <h3>Recent Users ({{ recent_users|length }})</h3>
+            <div class="activity-list">
+                {% for user in recent_users %}
+                <div class="activity-item">
+                    <strong>{{ user.username }}</strong>
+                    <span class="activity-meta">{{ user.created_at.strftime('%b %d, %Y') }}</span>
+                    {% if user.is_admin %}<span class="admin-badge">Admin</span>{% endif %}
+                    {% if not user.is_active %}<span class="inactive-badge">Inactive</span>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="activity-section">
+            <h3>Recent Posts ({{ recent_posts|length }})</h3>
+            <div class="activity-list">
+                {% for post in recent_posts %}
+                <div class="activity-item">
+                    <strong><a href="{{ url_for('post_detail', id=post.id) }}">{{ post.title[:50] }}{% if post.title|length > 50 %}...{% endif %}</a></strong>
+                    <span class="activity-meta">by {{ post.author.username }} on {{ post.created_at.strftime('%b %d') }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="activity-section">
+            <h3>Recent Comments ({{ recent_comments|length }})</h3>
+            <div class="activity-list">
+                {% for comment in recent_comments %}
+                <div class="activity-item">
+                    <strong>{{ comment.author.username }}</strong>
+                    <span class="activity-meta">{{ comment.created_at.strftime('%b %d') }}</span>
+                    <p class="comment-preview">{{ comment.content[:80] }}{% if comment.content|length > 80 %}...{% endif %}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+}
+
+.admin-subtitle {
+    opacity: 0.9;
+    margin-top: 0.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+}
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 2rem;
+    color: #333;
+}
+
+.stat-content p {
+    margin: 0.25rem 0 0 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.admin-nav {
+    margin-bottom: 3rem;
+}
+
+.admin-nav h2 {
+    margin-bottom: 1.5rem;
+    color: #333;
+}
+
+.admin-nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.admin-nav-item {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-align: center;
+}
+
+.admin-nav-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    text-decoration: none;
+}
+
+.nav-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.admin-nav-item h3 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+}
+
+.admin-nav-item p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.recent-activity {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.activity-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.activity-section h3 {
+    margin: 0 0 1rem 0;
+    color: #333;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 0.5rem;
+}
+
+.activity-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-meta {
+    color: #666;
+    font-size: 0.85rem;
+    margin-left: 0.5rem;
+}
+
+.comment-preview {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.9rem;
+    color: #555;
+    font-style: italic;
+}
+
+.admin-badge {
+    background: #28a745;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    margin-left: 0.5rem;
+}
+
+.inactive-badge {
+    background: #dc3545;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    margin-left: 0.5rem;
+}
+</style>
+{% endblock %}

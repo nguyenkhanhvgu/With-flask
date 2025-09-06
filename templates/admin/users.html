@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="admin-header">
+        <h1>👥 User Management</h1>
+        <p class="admin-subtitle">Manage user accounts and permissions</p>
+        <a href="{{ url_for('admin_dashboard') }}" class="back-link">← Back to Dashboard</a>
+    </div>
+    
+    <!-- User Statistics -->
+    <div class="user-stats">
+        <div class="stat-item">
+            <span class="stat-number">{{ users|length }}</span>
+            <span class="stat-label">Total Users</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-number">{{ users|selectattr('is_admin')|list|length }}</span>
+            <span class="stat-label">Admins</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-number">{{ users|selectattr('is_active')|list|length }}</span>
+            <span class="stat-label">Active Users</span>
+        </div>
+    </div>
+    
+    <!-- Users Table -->
+    <div class="users-table-container">
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>Avatar</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th>Posts</th>
+                    <th>Comments</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr class="{% if not user.is_active %}inactive-row{% endif %}">
+                    <td class="avatar-cell">
+                        {% if user.avatar %}
+                            <img src="{{ url_for('static', filename='uploads/avatars/' + user.avatar) }}" 
+                                 alt="{{ user.username }}" class="user-avatar">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='uploads/avatars/default-avatar.png') }}" 
+                                 alt="Default Avatar" class="user-avatar">
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ user.username }}</strong>
+                        {% if user.id == current_user.id %}<span class="you-badge">You</span>{% endif %}
+                    </td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                        {% if user.is_active %}
+                            <span class="status-badge active">Active</span>
+                        {% else %}
+                            <span class="status-badge inactive">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if user.is_admin %}
+                            <span class="role-badge admin">Admin</span>
+                        {% else %}
+                            <span class="role-badge user">User</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.created_at.strftime('%b %d, %Y') }}</td>
+                    <td>{{ user.posts|length }}</td>
+                    <td>{{ user.comments|length }}</td>
+                    <td class="actions-cell">
+                        {% if user.id != current_user.id %}
+                            <div class="action-buttons">
+                                <!-- Toggle Admin Status -->
+                                <form method="POST" action="{{ url_for('admin_toggle_admin', user_id=user.id) }}" class="inline-form">
+                                    {% if user.is_admin %}
+                                        <button type="submit" class="btn btn-sm btn-warning" 
+                                                title="Remove Admin">
+                                            ⬇️ Remove Admin
+                                        </button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-sm btn-success" 
+                                                title="Make Admin">
+                                            ⬆️ Make Admin
+                                        </button>
+                                    {% endif %}
+                                </form>
+                                
+                                <!-- Toggle Active Status -->
+                                <form method="POST" action="{{ url_for('admin_toggle_user_status', user_id=user.id) }}" class="inline-form">
+                                    {% if user.is_active %}
+                                        <button type="submit" class="btn btn-sm btn-danger" 
+                                                title="Deactivate User"
+                                                onclick="return confirm('Are you sure you want to deactivate this user?')">
+                                            🚫 Deactivate
+                                        </button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-sm btn-success" 
+                                                title="Activate User">
+                                            ✅ Activate
+                                        </button>
+                                    {% endif %}
+                                </form>
+                                
+                                <!-- View Profile -->
+                                <a href="{{ url_for('user_profile', user_id=user.id) }}" 
+                                   class="btn btn-sm btn-info" title="View Profile">
+                                    👁️ View
+                                </a>
+                            </div>
+                        {% else %}
+                            <span class="text-muted">Current User</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.admin-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border-radius: 12px;
+    position: relative;
+}
+
+.back-link {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.2);
+    transition: background 0.2s;
+}
+
+.back-link:hover {
+    background: rgba(255,255,255,0.3);
+    text-decoration: none;
+    color: white;
+}
+
+.user-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-align: center;
+    min-width: 120px;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.stat-label {
+    display: block;
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.users-table-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.users-table th {
+    background: #f8f9fa;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.users-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+.users-table tr:hover {
+    background: #f8f9fa;
+}
+
+.inactive-row {
+    opacity: 0.7;
+    background: #fff3cd;
+}
+
+.avatar-cell {
+    text-align: center;
+    width: 60px;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ddd;
+}
+
+.you-badge {
+    background: #007bff;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    margin-left: 0.5rem;
+}
+
+.status-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-badge.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.role-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.role-badge.admin {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.role-badge.user {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.actions-cell {
+    width: 250px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.inline-form {
+    display: inline-block;
+}
+
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 768px) {
+    .users-table-container {
+        overflow-x: auto;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .user-stats {
+        gap: 1rem;
+    }
+}
+</style>
+{% endblock %}

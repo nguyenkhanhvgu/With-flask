@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="admin-header">
+        <h1>📁 Category Management</h1>
+        <p class="admin-subtitle">Organize and manage post categories</p>
+        <a href="{{ url_for('admin_dashboard') }}" class="back-link">← Back to Dashboard</a>
+    </div>
+    
+    <!-- Category Statistics -->
+    <div class="category-stats">
+        <div class="stat-item">
+            <span class="stat-number">{{ categories|length }}</span>
+            <span class="stat-label">Total Categories</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-number">{{ categories|selectattr('posts')|list|length }}</span>
+            <span class="stat-label">With Posts</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-number">{{ categories|sum(attribute='posts')|length if categories else 0 }}</span>
+            <span class="stat-label">Total Posts</span>
+        </div>
+    </div>
+    
+    <!-- Create New Category -->
+    <div class="create-category-section">
+        <h2>Create New Category</h2>
+        <form method="POST" action="{{ url_for('admin_create_category') }}" class="create-category-form">
+            <div class="form-group">
+                <label for="name">Category Name:</label>
+                <input type="text" id="name" name="name" required 
+                       placeholder="Enter category name..." class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="description">Description (optional):</label>
+                <textarea id="description" name="description" rows="3" 
+                          placeholder="Enter category description..." class="form-control"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                ✨ Create Category
+            </button>
+        </form>
+    </div>
+    
+    <!-- Categories List -->
+    <div class="categories-section">
+        <h2>Existing Categories</h2>
+        
+        {% if categories %}
+        <div class="categories-grid">
+            {% for category in categories %}
+            <div class="category-card">
+                <div class="category-header">
+                    <h3 class="category-name">{{ category.name }}</h3>
+                    <div class="category-badge">{{ category.posts|length }} posts</div>
+                </div>
+                
+                {% if category.description %}
+                <div class="category-description">
+                    {{ category.description }}
+                </div>
+                {% endif %}
+                
+                <div class="category-posts">
+                    {% if category.posts %}
+                        <h4>Recent Posts:</h4>
+                        <ul class="post-list">
+                            {% for post in category.posts[:5] %}
+                            <li>
+                                <a href="{{ url_for('post_detail', id=post.id) }}" class="post-link">
+                                    {{ post.title }}
+                                </a>
+                                <span class="post-author">by {{ post.author.username }}</span>
+                            </li>
+                            {% endfor %}
+                            {% if category.posts|length > 5 %}
+                            <li class="more-posts">
+                                <a href="{{ url_for('category_posts', category_id=category.id) }}">
+                                    View all {{ category.posts|length }} posts →
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    {% else %}
+                        <div class="no-posts">
+                            <em>No posts in this category yet</em>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="category-actions">
+                    <a href="{{ url_for('category_posts', category_id=category.id) }}" 
+                       class="btn btn-sm btn-info" title="View Posts">
+                        👁️ View Posts
+                    </a>
+                    
+                    <form method="POST" action="{{ url_for('admin_delete_category', category_id=category.id) }}" 
+                          class="inline-form">
+                        <button type="submit" class="btn btn-sm btn-danger" 
+                                title="Delete Category"
+                                onclick="return confirm('Are you sure you want to delete this category? Posts in this category will become uncategorized.')">
+                            🗑️ Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-categories">
+            <div class="no-categories-icon">📁</div>
+            <h3>No Categories Yet</h3>
+            <p>Create your first category to help organize blog posts.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.admin-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);
+    color: white;
+    border-radius: 12px;
+    position: relative;
+}
+
+.back-link {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.2);
+    transition: background 0.2s;
+}
+
+.back-link:hover {
+    background: rgba(255,255,255,0.3);
+    text-decoration: none;
+    color: white;
+}
+
+.category-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 3rem;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-align: center;
+    min-width: 120px;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #fd7e14;
+}
+
+.stat-label {
+    display: block;
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.create-category-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    margin-bottom: 3rem;
+}
+
+.create-category-section h2 {
+    margin: 0 0 1.5rem 0;
+    color: #333;
+}
+
+.create-category-form {
+    max-width: 500px;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #fd7e14;
+    box-shadow: 0 0 0 3px rgba(253, 126, 20, 0.1);
+}
+
+.btn-primary {
+    background: #fd7e14;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #e8681a;
+    transform: translateY(-1px);
+}
+
+.categories-section {
+    margin-top: 3rem;
+}
+
+.categories-section h2 {
+    margin-bottom: 1.5rem;
+    color: #333;
+}
+
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.category-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    transition: transform 0.2s;
+}
+
+.category-card:hover {
+    transform: translateY(-4px);
+}
+
+.category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.category-name {
+    margin: 0;
+    color: #333;
+    font-size: 1.25rem;
+}
+
+.category-badge {
+    background: #fd7e14;
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.category-description {
+    color: #666;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+    font-style: italic;
+}
+
+.category-posts {
+    margin-bottom: 1.5rem;
+}
+
+.category-posts h4 {
+    margin: 0 0 0.75rem 0;
+    color: #333;
+    font-size: 1rem;
+}
+
+.post-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.post-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.post-list li:last-child {
+    border-bottom: none;
+}
+
+.post-link {
+    color: #fd7e14;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.post-link:hover {
+    text-decoration: underline;
+}
+
+.post-author {
+    color: #666;
+    font-size: 0.85rem;
+    margin-left: 0.5rem;
+}
+
+.more-posts a {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.no-posts {
+    color: #999;
+    font-size: 0.9rem;
+    padding: 1rem 0;
+}
+
+.category-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.inline-form {
+    display: inline-block;
+}
+
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.no-categories {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #666;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.no-categories-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.no-categories h3 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+}
+
+.no-categories p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .categories-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .category-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .category-actions {
+        justify-content: center;
+    }
+    
+    .category-stats {
+        gap: 1rem;
+    }
+}
+</style>
+{% endblock %}

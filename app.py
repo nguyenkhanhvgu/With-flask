@@ -107,6 +107,18 @@ def save_uploaded_file(file, upload_type='posts'):
         return unique_filename
     return None
 
+# Admin utility functions
+def admin_required(f):
+    """Decorator to require admin access"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            flash('Access denied. Admin privileges required.', 'error')
+            return redirect(url_for('home'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # Email utility functions
 def send_async_email(app, msg):
     """Send email asynchronously"""
@@ -176,6 +188,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     avatar_filename = db.Column(db.String(255), nullable=True, default='default-avatar.png')
+    is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     
@@ -364,6 +377,168 @@ def profile():
     user_posts = Post.query.filter_by(user_id=current_user.id).order_by(Post.created_at.desc()).all()
     
     return render_template('profile.html', title='My Profile', user=current_user, posts=user_posts)
+
+# Admin Routes
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_dashboard():
+    """Admin dashboard with site statistics"""
+    # Get statistics
+    total_users = User.query.count()
+    total_posts = Post.query.count()
+    total_comments = Comment.query.count()
+    total_categories = Category.query.count()
+    
+    # Recent activity
+    recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
+    recent_posts = Post.query.order_by(Post.created_at.desc()).limit(5).all()
+    recent_comments = Comment.query.order_by(Comment.created_at.desc()).limit(5).all()
+    
+    return render_template('admin/dashboard.html', 
+                         title='Admin Dashboard',
+                         total_users=total_users,
+                         total_posts=total_posts,
+                         total_comments=total_comments,
+                         total_categories=total_categories,
+                         recent_users=recent_users,
+                         recent_posts=recent_posts,
+                         recent_comments=recent_comments)
+
+@app.route('/admin/users')
+@login_required
+@admin_required
+def admin_users():
+    """Manage users"""
+    page = request.args.get('page', 1, type=int)
+    users = User.query.order_by(User.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    return render_template('admin/users.html', title='Manage Users', users=users)
+
+@app.route('/admin/users/<int:user_id>/toggle-admin', methods=['POST'])
+@login_required
+@admin_required
+def toggle_user_admin(user_id):
+    """Toggle admin status for a user"""
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash('You cannot change your own admin status.', 'error')
+    else:
+        user.is_admin = not user.is_admin
+        db.session.commit()
+        status = 'promoted to admin' if user.is_admin else 'removed from admin'
+        flash(f'User {user.username} has been {status}.', 'success')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/users/<int:user_id>/toggle-active', methods=['POST'])
+@login_required
+@admin_required
+def toggle_user_active(user_id):
+    """Toggle active status for a user"""
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash('You cannot deactivate your own account.', 'error')
+    else:
+        user.is_active = not user.is_active
+        db.session.commit()
+        status = 'activated' if user.is_active else 'deactivated'
+        flash(f'User {user.username} has been {status}.', 'success')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/posts')
+@login_required
+@admin_required
+def admin_posts():
+    """Manage posts"""
+    page = request.args.get('page', 1, type=int)
+    posts = Post.query.order_by(Post.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    return render_template('admin/posts.html', title='Manage Posts', posts=posts)
+
+@app.route('/admin/posts/<int:post_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_post(post_id):
+    """Delete a post"""
+    post = Post.query.get_or_404(post_id)
+    post_title = post.title
+    db.session.delete(post)
+    db.session.commit()
+    flash(f'Post "{post_title}" has been deleted.', 'success')
+    return redirect(url_for('admin_posts'))
+
+@app.route('/admin/comments')
+@login_required
+@admin_required
+def admin_comments():
+    """Manage comments"""
+    page = request.args.get('page', 1, type=int)
+    comments = Comment.query.order_by(Comment.created_at.desc()).paginate(
+        page=page, per_page=30, error_out=False
+    )
+    return render_template('admin/comments.html', title='Manage Comments', comments=comments)
+
+@app.route('/admin/comments/<int:comment_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_comment(comment_id):
+    """Delete a comment"""
+    comment = Comment.query.get_or_404(comment_id)
+    db.session.delete(comment)
+    db.session.commit()
+    flash('Comment has been deleted.', 'success')
+    return redirect(url_for('admin_comments'))
+
+@app.route('/admin/categories')
+@login_required
+@admin_required
+def admin_categories():
+    """Manage categories"""
+    categories = Category.query.order_by(Category.name).all()
+    return render_template('admin/categories.html', title='Manage Categories', categories=categories)
+
+@app.route('/admin/categories/create', methods=['POST'])
+@login_required
+@admin_required
+def admin_create_category():
+    """Create a new category"""
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+    
+    if name:
+        # Check if category already exists
+        existing = Category.query.filter_by(name=name).first()
+        if existing:
+            flash(f'Category "{name}" already exists.', 'error')
+        else:
+            category = Category(name=name, description=description)
+            db.session.add(category)
+            db.session.commit()
+            flash(f'Category "{name}" has been created.', 'success')
+    else:
+        flash('Category name is required.', 'error')
+    
+    return redirect(url_for('admin_categories'))
+
+@app.route('/admin/categories/<int:category_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_category(category_id):
+    """Delete a category"""
+    category = Category.query.get_or_404(category_id)
+    category_name = category.name
+    
+    # Check if category has posts
+    if category.posts:
+        flash(f'Cannot delete category "{category_name}" because it contains posts.', 'error')
+    else:
+        db.session.delete(category)
+        db.session.commit()
+        flash(f'Category "{category_name}" has been deleted.', 'success')
+    
+    return redirect(url_for('admin_categories'))
 
 @app.route('/about')
 def about():

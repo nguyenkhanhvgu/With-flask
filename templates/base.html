@@ -29,6 +29,9 @@
                 {% if current_user.is_authenticated %}
                     <li><a href="{{ url_for('create_post') }}">Create Post</a></li>
                     <li><a href="{{ url_for('profile') }}">Profile</a></li>
+                    {% if current_user.is_admin %}
+                    <li><a href="{{ url_for('admin_dashboard') }}" style="color: #ff6b35; font-weight: bold;">Admin</a></li>
+                    {% endif %}
                     <li class="user-menu">
                         <span class="username">{{ current_user.username }}</span>
                         <a href="{{ url_for('logout') }}">Logout</a>
