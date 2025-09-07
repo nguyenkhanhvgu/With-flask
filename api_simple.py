@@ -369,7 +369,8 @@ def get_post_comments(post_id):
 def create_comment(post_id):
     """Create a new comment on a post"""
     try:
-        from app import Post, Comment, db, send_comment_notification
+        from app import Post, Comment, db, send_comment_notification, socketio
+        import threading
         
         post = Post.query.get_or_404(post_id)
         
@@ -391,8 +392,32 @@ def create_comment(post_id):
         db.session.add(comment)
         db.session.commit()
         
-        # Send email notification to post author
-        send_comment_notification(post, comment)
+        # Send email notification to post author (in background)
+        if post.author.email and post.author.email != request.current_user.email:
+            threading.Thread(
+                target=send_comment_notification, 
+                args=(post, comment)
+            ).start()
+        
+        # Broadcast new comment via WebSocket
+        comment_data = {
+            'id': comment.id,
+            'content': comment.content,
+            'author': {
+                'id': request.current_user.id,
+                'username': request.current_user.username,
+                'avatar': f"/static/uploads/avatars/{request.current_user.avatar_filename}" if request.current_user.avatar_filename else "/static/uploads/avatars/default-avatar.png"
+            },
+            'created_at': comment.created_at.strftime('%B %d, %Y at %I:%M %p'),
+            'created_at_iso': comment.created_at.isoformat()
+        }
+        
+        # Emit to all connected clients in this post's room
+        room = f"post_{post_id}"
+        socketio.emit('comment_added', {
+            'comment': comment_data,
+            'post_id': post_id
+        }, room=room)
         
         return jsonify({
             'message': 'Comment created successfully',

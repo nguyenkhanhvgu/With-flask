@@ -13,3 +13,5 @@ Flask-WTF==1.1.1
 email-validator==2.0.0
 Flask-Mail==0.9.1
 PyJWT==2.8.0
+Flask-SocketIO==5.3.6
+python-socketio==5.8.0

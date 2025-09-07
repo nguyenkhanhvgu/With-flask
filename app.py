@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_mail import Mail, Message
+from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
@@ -48,6 +49,9 @@ migrate = Migrate(app, db)
 
 # Initialize Flask-Mail
 mail = Mail(app)
+
+# Initialize Flask-SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -622,8 +626,31 @@ def post_detail(id):
             db.session.add(comment)
             db.session.commit()
             
-            # Send email notification to post author
-            send_comment_notification(post, comment)
+            # Send email notification to post author (in background)
+            threading.Thread(
+                target=send_comment_notification, 
+                args=(post, comment)
+            ).start()
+            
+            # Broadcast new comment via WebSocket
+            comment_data = {
+                'id': comment.id,
+                'content': comment.content,
+                'author': {
+                    'id': current_user.id,
+                    'username': current_user.username,
+                    'avatar': f"/static/uploads/avatars/{current_user.avatar_filename}" if current_user.avatar_filename else "/static/uploads/avatars/default-avatar.png"
+                },
+                'created_at': comment.created_at.strftime('%B %d, %Y at %I:%M %p'),
+                'created_at_iso': comment.created_at.isoformat()
+            }
+            
+            # Emit to all connected clients in this post's room
+            room = f"post_{id}"
+            socketio.emit('comment_added', {
+                'comment': comment_data,
+                'post_id': id
+            }, room=room)
             
             flash('Your comment has been added!', 'success')
             return redirect(url_for('post_detail', id=id))
@@ -799,6 +826,135 @@ def internal_server_error(e):
     """Handle 500 errors"""
     return render_template('500.html', title='Server Error'), 500
 
+# WebSocket Event Handlers
+@socketio.on('join_post')
+def on_join_post(data):
+    """Join a post room for real-time comments"""
+    post_id = data.get('post_id')
+    if post_id:
+        room = f"post_{post_id}"
+        join_room(room)
+        if current_user.is_authenticated:
+            emit('status', {
+                'message': f'{current_user.username} joined the discussion',
+                'username': current_user.username,
+                'type': 'user_joined'
+            }, room=room)
+        print(f"User joined room: {room}")
+
+@socketio.on('leave_post')
+def on_leave_post(data):
+    """Leave a post room"""
+    post_id = data.get('post_id')
+    if post_id:
+        room = f"post_{post_id}"
+        leave_room(room)
+        if current_user.is_authenticated:
+            emit('status', {
+                'message': f'{current_user.username} left the discussion',
+                'username': current_user.username,
+                'type': 'user_left'
+            }, room=room)
+        print(f"User left room: {room}")
+
+@socketio.on('new_comment')
+def on_new_comment(data):
+    """Handle new comment submission via WebSocket"""
+    if not current_user.is_authenticated:
+        emit('error', {'message': 'Authentication required'})
+        return
+    
+    try:
+        post_id = data.get('post_id')
+        content = data.get('content', '').strip()
+        
+        if not post_id or not content:
+            emit('error', {'message': 'Post ID and content are required'})
+            return
+        
+        # Get the post
+        post = Post.query.get(post_id)
+        if not post:
+            emit('error', {'message': 'Post not found'})
+            return
+        
+        # Create the comment
+        comment = Comment(
+            content=content,
+            post_id=post_id,
+            user_id=current_user.id
+        )
+        
+        db.session.add(comment)
+        db.session.commit()
+        
+        # Send email notification to post author (in background)
+        if post.author.email and post.author.email != current_user.email:
+            threading.Thread(
+                target=send_comment_notification, 
+                args=(post, comment)
+            ).start()
+        
+        # Prepare comment data for broadcast
+        comment_data = {
+            'id': comment.id,
+            'content': comment.content,
+            'author': {
+                'id': current_user.id,
+                'username': current_user.username,
+                'avatar': f"/static/uploads/avatars/{current_user.avatar_filename}" if current_user.avatar_filename else "/static/uploads/avatars/default-avatar.png"
+            },
+            'created_at': comment.created_at.strftime('%B %d, %Y at %I:%M %p'),
+            'created_at_iso': comment.created_at.isoformat()
+        }
+        
+        # Broadcast to all users in the post room
+        room = f"post_{post_id}"
+        emit('comment_added', {
+            'comment': comment_data,
+            'post_id': post_id
+        }, room=room)
+        
+        print(f"New comment broadcasted to room: {room}")
+        
+    except Exception as e:
+        db.session.rollback()
+        emit('error', {'message': f'Failed to add comment: {str(e)}'})
+        print(f"Error creating comment: {e}")
+
+@socketio.on('typing')
+def on_typing(data):
+    """Handle typing indicators"""
+    if not current_user.is_authenticated:
+        return
+    
+    post_id = data.get('post_id')
+    is_typing = data.get('is_typing', False)
+    
+    if post_id:
+        room = f"post_{post_id}"
+        emit('user_typing', {
+            'username': current_user.username,
+            'user_id': current_user.id,
+            'is_typing': is_typing
+        }, room=room, include_self=False)
+
+@socketio.on('connect')
+def on_connect():
+    """Handle client connection"""
+    if current_user.is_authenticated:
+        print(f"User {current_user.username} connected to WebSocket")
+    else:
+        print("Anonymous user connected to WebSocket")
+
+@socketio.on('disconnect')
+def on_disconnect():
+    """Handle client disconnection"""
+    if current_user.is_authenticated:
+        print(f"User {current_user.username} disconnected from WebSocket")
+    else:
+        print("Anonymous user disconnected from WebSocket")
+
 if __name__ == '__main__':
     # Register API Blueprint
     from api_simple import api
@@ -808,5 +964,5 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     
-    # Run the application in debug mode for development
-    app.run(debug=True, host='127.0.0.1', port=5002)
+    # Run the application with SocketIO support
+    socketio.run(app, debug=True, host='127.0.0.1', port=5002)
