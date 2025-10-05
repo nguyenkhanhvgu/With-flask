@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="categories-header">
+        <h1>Categories</h1>
+        <a href="{{ url_for('blog.index') }}" class="btn btn-secondary">← Back to Blog</a>
+    </div>
+    
+    {% if categories %}
+        <div class="categories-grid">
+            {% for category in categories %}
+            <div class="category-card">
+                <h3><a href="{{ url_for('blog.category_posts', id=category.id) }}">{{ category.name }}</a></h3>
+                {% if category.description %}
+                    <p class="category-description">{{ category.description }}</p>
+                {% endif %}
+                <div class="category-stats">
+                    <span class="post-count">{{ category.post_count }} posts</span>
+                    <a href="{{ url_for('blog.category_posts', id=category.id) }}" class="btn btn-sm btn-primary">View Posts</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-categories">
+            <h3>No categories yet!</h3>
+            <p>Categories help organize blog posts by topic. Once posts are created with categories, they will appear here.</p>
+            <div class="category-actions">
+                <a href="{{ url_for('blog.create_post') }}" class="btn btn-primary">Create First Post</a>
+                <a href="{{ url_for('blog.index') }}" class="btn btn-secondary">View All Posts</a>
+            </div>
+        </div>
+    {% endif %}
+    
+    <div class="database-info">
+        <h3>Database Concept: Categories</h3>
+        <p>Categories demonstrate a <strong>One-to-Many</strong> relationship where:</p>
+        <ul>
+            <li>One category can have many posts</li>
+            <li>Each post belongs to zero or one category (optional relationship)</li>
+            <li>The foreign key <code>category_id</code> in the Post table references the Category table</li>
+            <li>Categories can exist without posts, but posts reference existing categories</li>
+        </ul>
+        
+        <h3>Blueprint Organization:</h3>
+        <p>This page demonstrates how blueprints organize related functionality:</p>
+        <ul>
+            <li>All blog-related routes are grouped under the <code>blog</code> blueprint</li>
+            <li>URL patterns are consistent: <code>/blog/categories</code>, <code>/blog/category/&lt;id&gt;</code></li>
+            <li>Templates are organized in the <code>templates/blog/</code> directory</li>
+            <li>Related functionality is kept together for better maintainability</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.categories-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.category-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.category-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.category-card h3 {
+    margin: 0 0 1rem 0;
+}
+
+.category-card h3 a {
+    color: #333;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.category-card h3 a:hover {
+    color: #007bff;
+}
+
+.category-description {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.category-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+.post-count {
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.no-categories {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.no-categories h3 {
+    color: #495057;
+    margin-bottom: 1rem;
+}
+
+.category-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.database-info {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.database-info h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.database-info ul {
+    margin-bottom: 1rem;
+}
+
+.database-info li {
+    margin-bottom: 0.5rem;
+}
+
+.database-info code {
+    background: #e9ecef;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .categories-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .categories-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .category-actions {
+        flex-direction: column;
+    }
+    
+    .category-actions .btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

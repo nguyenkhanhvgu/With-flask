@@ -21,6 +21,9 @@
             <p class="user-email">{{ user.email }}</p>
             <p class="member-since">Member since {{ user.created_at.strftime('%B %Y') }}</p>
             <p class="post-count">{{ posts|length }} posts published</p>
+            <div class="profile-actions">
+                <a href="{{ url_for('auth.change_password') }}" class="btn btn-secondary">Change Password</a>
+            </div>
         </div>
     </div>
     
@@ -39,7 +42,7 @@
                     {% endif %}
                     
                     <div class="post-content">
-                        <h3><a href="{{ url_for('post_detail', id=post.id) }}">{{ post.title }}</a></h3>
+                        <h3><a href="{{ url_for('blog.post_detail', id=post.id) }}">{{ post.title }}</a></h3>
                         <div class="post-meta">
                             <span class="date">{{ post.created_at.strftime('%B %d, %Y') }}</span>
                             {% if post.category %}
@@ -48,7 +51,7 @@
                         </div>
                         <p class="post-excerpt">{{ post.content[:150] }}{% if post.content|length > 150 %}...{% endif %}</p>
                         <div class="post-actions">
-                            <a href="{{ url_for('post_detail', id=post.id) }}" class="btn btn-sm">View</a>
+                            <a href="{{ url_for('blog.post_detail', id=post.id) }}" class="btn btn-sm">View</a>
                             <!-- Future: Add edit/delete buttons -->
                         </div>
                     </div>
@@ -58,7 +61,7 @@
         {% else %}
             <div class="no-posts">
                 <h3>No posts yet</h3>
-                <p>You haven't published any posts. <a href="{{ url_for('create_post') }}">Create your first post</a>!</p>
+                <p>You haven't published any posts. <a href="{{ url_for('blog.create_post') }}">Create your first post</a>!</p>
             </div>
         {% endif %}
     </div>

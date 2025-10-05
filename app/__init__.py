@@ -7,8 +7,9 @@ by creating the Flask app instance dynamically with different configurations.
 """
 
 from flask import Flask
-from app.extensions import db, migrate, login_manager, mail, socketio
+from app.extensions import db, migrate, login_manager, mail, socketio, cache
 from app.config import config
+from app.middleware.logging import RequestLoggingMiddleware
 
 
 def create_app(config_name='development'):
@@ -25,7 +26,10 @@ def create_app(config_name='development'):
     for creating applications that can be easily configured for different environments.
     """
     # Create Flask application instance
-    app = Flask(__name__)
+    # Set template and static folders relative to the project root
+    app = Flask(__name__, 
+                template_folder='../templates',
+                static_folder='../static')
     
     # Load configuration based on environment
     app.config.from_object(config[config_name])
@@ -37,6 +41,11 @@ def create_app(config_name='development'):
     login_manager.init_app(app)
     mail.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
+    cache.init_app(app)
+    
+    # Initialize logging middleware
+    logging_middleware = RequestLoggingMiddleware()
+    logging_middleware.init_app(app)
     
     # Configure Flask-Login
     login_manager.login_view = 'auth.login'
@@ -61,6 +70,9 @@ def create_app(config_name='development'):
     # Register error handlers
     register_error_handlers(app)
     
+    # Register CLI commands
+    register_cli_commands(app)
+    
     return app
 
 
@@ -80,13 +92,15 @@ def register_blueprints(app):
     from app.blueprints.blog import bp as blog_bp
     from app.blueprints.admin import bp as admin_bp
     from app.blueprints.api import bp as api_bp
+    from app.blueprints.api.restx_init import restx_bp
     
     # Register blueprints with URL prefixes
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(blog_bp, url_prefix='/blog')
     app.register_blueprint(admin_bp, url_prefix='/admin')
-    app.register_blueprint(api_bp, url_prefix='/api/v1')
+    app.register_blueprint(api_bp)  # URL prefix already set in blueprint
+    app.register_blueprint(restx_bp)  # Flask-RESTX API with documentation
 
 
 def register_template_filters(app):
@@ -120,3 +134,41 @@ def register_error_handlers(app):
         from app.extensions import db
         db.session.rollback()
         return render_template('errors/500.html'), 500
+
+
+def register_cli_commands(app):
+    """
+    Register CLI commands for cache management.
+    
+    Args:
+        app (Flask): The Flask application instance
+    """
+    @app.cli.command()
+    def clear_cache():
+        """Clear all cache entries."""
+        from app.middleware.caching import CacheManager
+        if CacheManager.clear_all():
+            print("Cache cleared successfully")
+        else:
+            print("Failed to clear cache")
+    
+    @app.cli.command()
+    def warm_cache():
+        """Warm up the cache with frequently accessed data."""
+        from app.middleware.caching import CacheManager
+        if CacheManager.warm_cache():
+            print("Cache warmed successfully")
+        else:
+            print("Failed to warm cache")
+    
+    @app.cli.command()
+    def cache_info():
+        """Display cache information and statistics."""
+        from app.middleware.caching import CacheManager
+        info = CacheManager.get_info()
+        if info:
+            print("Cache Statistics:")
+            for key, value in info.items():
+                print(f"  {key}: {value}")
+        else:
+            print("Failed to get cache information")

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Resend Confirmation - Flask Blog{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-envelope me-2"></i>Resend Email Confirmation
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Email Not Confirmed</strong><br>
+                        Your email address <strong>{{ current_user.email }}</strong> has not been confirmed yet. 
+                        You need to confirm your email to access all features.
+                    </div>
+                    
+                    <p class="text-muted mb-4">
+                        Click the button below to send a new confirmation email to your registered email address.
+                    </p>
+                    
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="mb-2">
+                            <a href="{{ url_for('main.home') }}" class="text-decoration-none">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Home
+                            </a>
+                        </p>
+                        <p class="mb-0">
+                            <a href="{{ url_for('auth.logout') }}" class="text-decoration-none">
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Help Information -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-question-circle me-2 text-info"></i>Need Help?
+                    </h6>
+                    <ul class="list-unstyled mb-0 small text-muted">
+                        <li><i class="fas fa-check text-success me-2"></i>Check your spam/junk folder</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Make sure {{ current_user.email }} is correct</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Confirmation links expire after 24 hours</li>
+                        <li><i class="fas fa-check text-success me-2"></i>You can only request 3 emails per 5 minutes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

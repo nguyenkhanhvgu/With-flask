@@ -1,0 +1,22 @@
+Welcome to Flask Blog!
+
+Hello {{ user.username }}!
+
+Thank you for registering with Flask Blog. To complete your registration and start using your account, please confirm your email address by visiting this link:
+
+{{ confirm_url }}
+
+IMPORTANT: This confirmation link will expire in 24 hours. If you don't confirm your email within this time, you'll need to register again.
+
+Once you confirm your email, you'll be able to:
+- Create and publish blog posts
+- Comment on posts
+- Follow other users
+- Customize your profile
+
+If you didn't create an account with Flask Blog, please ignore this email.
+
+Best regards,
+The Flask Blog Team
+
+This is an automated email. Please do not reply to this message.

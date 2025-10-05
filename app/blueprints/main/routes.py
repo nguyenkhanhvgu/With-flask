@@ -42,3 +42,26 @@ def contact():
             flash('Please fill in all fields.', 'error')
     
     return render_template('contact.html', title='Contact - Flask Learning App')
+
+
+@bp.route('/users')
+def users():
+    """Display all users"""
+    # Import here to avoid circular imports
+    from app.models.user import User
+    
+    users = User.query.all()
+    return render_template('users.html', title='Users', users=users)
+
+
+@bp.route('/user/<username>')
+def user_profile(username):
+    """Display user profile with their posts"""
+    # Import here to avoid circular imports
+    from app.models.user import User
+    from app.models.blog import Post
+    
+    user = User.query.filter_by(username=username).first_or_404()
+    posts = Post.query.filter_by(user_id=user.id).order_by(Post.created_at.desc()).all()
+    return render_template('user_profile.html', title=f'{username} - Profile', 
+                         user=user, posts=posts)

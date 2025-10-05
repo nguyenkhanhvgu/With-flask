@@ -1,0 +1,29 @@
+Welcome to Flask Blog!
+
+Hello {{ user.username }}!
+
+Welcome to Flask Blog! We're excited to have you join our community of writers and readers. Your email has been confirmed and your account is now active.
+
+What you can do now:
+- Create Posts: Share your thoughts and ideas with the community
+- Engage: Comment on posts and join discussions
+- Connect: Follow other users and build your network
+- Customize: Update your profile and add an avatar
+- Discover: Explore posts by category and trending topics
+
+Getting Started Tips:
+- Complete your profile to help others connect with you
+- Write your first post to introduce yourself
+- Follow users whose content interests you
+- Engage with the community through comments and likes
+
+Visit Flask Blog: {{ url_for('main.home', _external=True) }}
+
+If you have any questions or need help getting started, feel free to explore our help section or contact our support team.
+
+Happy blogging!
+
+Best regards,
+The Flask Blog Team
+
+This is an automated email. Please do not reply to this message.

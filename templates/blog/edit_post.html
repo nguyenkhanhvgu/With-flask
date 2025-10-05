@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <h1>Edit Post</h1>
+    
+    <form method="POST" enctype="multipart/form-data" class="post-form">
+        <div class="form-group">
+            <label for="title">Post Title:</label>
+            <input type="text" id="title" name="title" required maxlength="200" 
+                   value="{{ post.title }}" placeholder="Enter an engaging title for your post">
+        </div>
+        
+        <div class="form-group">
+            <label for="category_id">Category:</label>
+            <select id="category_id" name="category_id">
+                <option value="">Select a category (optional)</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}" 
+                        {% if post.category_id == category.id %}selected{% endif %}>
+                    {{ category.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <small class="form-text">Choose a category to help readers find your content</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="image">Featured Image:</label>
+            {% if post.image_filename %}
+            <div class="current-image">
+                <p>Current image:</p>
+                <img src="{{ url_for('static', filename='uploads/posts/' + post.image_filename) }}" 
+                     alt="Current featured image" style="max-width: 300px; height: auto; border-radius: 4px;">
+            </div>
+            {% endif %}
+            <input type="file" id="image" name="image" accept="image/*">
+            <small class="form-text">
+                {% if post.image_filename %}
+                Upload a new image to replace the current one. 
+                {% else %}
+                Upload an image to add as featured image. 
+                {% endif %}
+                Supported formats: JPG, PNG, GIF, WebP (max 16MB)
+            </small>
+        </div>
+        
+        <div class="form-group">
+            <label for="content">Content:</label>
+            <textarea id="content" name="content" rows="15" required 
+                      placeholder="Write your blog post content here...">{{ post.content }}</textarea>
+            <small class="form-text">Use line breaks to separate paragraphs. HTML is not supported.</small>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Update Post</button>
+            <a href="{{ url_for('blog.post_detail', id=post.id) }}" class="btn btn-secondary">Cancel</a>
+            <a href="{{ url_for('blog.index') }}" class="btn btn-outline-secondary">Back to Blog</a>
+        </div>
+    </form>
+    
+    <div class="form-info">
+        <h3>Editing Tips:</h3>
+        <ul>
+            <li><strong>Save frequently:</strong> Your changes are only saved when you click "Update Post"</li>
+            <li><strong>Preview:</strong> You can cancel and view the post to see how it looks</li>
+            <li><strong>Images:</strong> Uploading a new image will replace the current one</li>
+            <li><strong>Categories:</strong> You can change or remove the category at any time</li>
+        </ul>
+        
+        <h3>What This Form Demonstrates:</h3>
+        <ul>
+            <li>Updating existing database records</li>
+            <li>Pre-populating forms with current data</li>
+            <li>Handling file uploads in edit scenarios</li>
+            <li>User authorization (only post owner can edit)</li>
+            <li>Form validation for updates</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.post-form {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-group textarea {
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+.current-image {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.current-image p {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.form-info {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.form-info h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.form-info ul {
+    margin-bottom: 1rem;
+}
+
+.form-info li {
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .post-form {
+        padding: 1rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

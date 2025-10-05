@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Email Confirmation - Flask Blog{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            {% if success %}
+                <!-- Success Message -->
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="card-title mb-0">
+                            <i class="fas fa-check-circle me-2"></i>Email Confirmed Successfully!
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center">
+                            <i class="fas fa-envelope-check fa-4x text-success mb-3"></i>
+                            <h4>Welcome to Flask Blog!</h4>
+                            <p class="lead">Your email address has been confirmed and your account is now active.</p>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-edit fa-2x text-primary mb-2"></i>
+                                            <h6>Start Writing</h6>
+                                            <p class="small text-muted">Create your first blog post</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-user-edit fa-2x text-info mb-2"></i>
+                                            <h6>Complete Profile</h6>
+                                            <p class="small text-muted">Add your bio and avatar</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <a href="{{ url_for('main.home') }}" class="btn btn-primary me-2">
+                                    <i class="fas fa-home me-1"></i>Go to Home
+                                </a>
+                                <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-user me-1"></i>Update Profile
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Error Message -->
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h3 class="card-title mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Email Confirmation Failed
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center">
+                            <i class="fas fa-envelope-open-text fa-4x text-danger mb-3"></i>
+                            <h4>Confirmation Link Invalid</h4>
+                            <p class="lead">{{ error_message or "The confirmation link is invalid or has expired." }}</p>
+                            
+                            <div class="alert alert-info mt-4">
+                                <h6><i class="fas fa-info-circle me-2"></i>What can you do?</h6>
+                                <ul class="list-unstyled mb-0">
+                                    <li><i class="fas fa-arrow-right me-2"></i>Request a new confirmation email</li>
+                                    <li><i class="fas fa-arrow-right me-2"></i>Check if you're already logged in</li>
+                                    <li><i class="fas fa-arrow-right me-2"></i>Contact support if the problem persists</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="mt-4">
+                                {% if current_user.is_authenticated %}
+                                    <a href="{{ url_for('auth.resend_confirmation') }}" class="btn btn-primary me-2">
+                                        <i class="fas fa-paper-plane me-1"></i>Resend Confirmation
+                                    </a>
+                                    <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-home me-1"></i>Go to Home
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary me-2">
+                                        <i class="fas fa-sign-in-alt me-1"></i>Login
+                                    </a>
+                                    <a href="{{ url_for('auth.register') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-user-plus me-1"></i>Register
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

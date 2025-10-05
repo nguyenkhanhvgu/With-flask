@@ -52,6 +52,15 @@ class Config:
     COMMENTS_PER_PAGE = 10
     USERS_PER_PAGE = 20
     
+    # Cache Configuration
+    CACHE_TYPE = 'RedisCache'
+    CACHE_DEFAULT_TIMEOUT = 300  # 5 minutes default timeout
+    CACHE_KEY_PREFIX = 'flask_blog:'
+    
+    # Logging Configuration
+    LOG_LEVEL = 'INFO'
+    LOG_FILE = None  # Override in environment-specific configs
+    
     @staticmethod
     def init_app(app):
         """
@@ -87,6 +96,17 @@ class DevelopmentConfig(Config):
     # Development-specific settings
     SQLALCHEMY_ECHO = False  # Set to True to see SQL queries in console
     WTF_CSRF_ENABLED = True
+    
+    # Cache Configuration for Development
+    CACHE_REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+    CACHE_REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+    CACHE_REDIS_DB = int(os.environ.get('REDIS_DB', 0))
+    CACHE_REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD')
+    CACHE_DEFAULT_TIMEOUT = 300
+    
+    # Logging Configuration for Development
+    LOG_LEVEL = 'DEBUG'
+    LOG_FILE = 'logs/development.log'
     
     @staticmethod
     def init_app(app):
@@ -126,6 +146,14 @@ class TestingConfig(Config):
     import tempfile
     UPLOAD_PATH = tempfile.mkdtemp()
     
+    # Cache Configuration for Testing (use simple cache)
+    CACHE_TYPE = 'SimpleCache'
+    CACHE_DEFAULT_TIMEOUT = 60
+    
+    # Logging Configuration for Testing
+    LOG_LEVEL = 'WARNING'
+    LOG_FILE = None  # No file logging during tests
+    
     @staticmethod
     def init_app(app):
         """Initialize testing-specific configuration."""
@@ -160,6 +188,17 @@ class ProductionConfig(Config):
         'pool_pre_ping': True,
         'pool_recycle': 300,
     }
+    
+    # Cache Configuration for Production
+    CACHE_REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+    CACHE_REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+    CACHE_REDIS_DB = int(os.environ.get('REDIS_DB', 0))
+    CACHE_REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD')
+    CACHE_DEFAULT_TIMEOUT = 600  # 10 minutes for production
+    
+    # Logging Configuration for Production
+    LOG_LEVEL = 'INFO'
+    LOG_FILE = 'logs/production.log'
     
     @staticmethod
     def init_app(app):

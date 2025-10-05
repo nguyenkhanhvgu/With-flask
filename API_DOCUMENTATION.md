@@ -1,22 +1,59 @@
-# REST API Documentation
+# Flask-RESTful API Documentation
 
 ## Overview
 
-This REST API provides mobile app integration for the Flask blog application. The API uses JWT (JSON Web Tokens) for authentication and follows RESTful conventions.
+This REST API provides comprehensive mobile app integration for the Flask blog application. The API has been completely restructured using Flask-RESTful for better organization, consistency, and maintainability. It uses JWT (JSON Web Tokens) for authentication and follows RESTful conventions with proper HTTP status codes and error handling.
 
-**Base URL:** `http://localhost:5002/api/v1`
+**Base URL:** `http://localhost:5000/api/v1`
+
+> **Note**: The API has been migrated from the old single-file implementation (`api.py`) to a new Flask-RESTful structure. All endpoints remain backward compatible, but the new implementation provides better error handling, validation, and maintainability.
+
+## New Flask-RESTful Architecture
+
+The API has been completely restructured using Flask-RESTful for better maintainability and consistency:
+
+### Architecture Improvements
+
+- **Flask-RESTful Resources**: Each endpoint is implemented as a proper RESTful resource class
+- **Modular Organization**: Resources are organized by functionality in separate files:
+  - `auth_resources.py` - Authentication endpoints
+  - `user_resources.py` - User management
+  - `post_resources.py` - Blog post operations
+  - `comment_resources.py` - Comment management
+  - `category_resources.py` - Category operations
+  - `admin_resources.py` - Admin-only endpoints
+  - `utility_resources.py` - File uploads and utilities
+- **Base Resource Class**: Common functionality shared across all resources
+- **Consistent Error Handling**: Standardized error responses with proper HTTP status codes
+- **Enhanced Validation**: Improved input validation with detailed error messages
+- **Security Enhancements**: Better JWT token handling and permission checks
+
+### Key Benefits
+
+1. **Better Code Organization**: Easier to maintain and extend
+2. **Consistent API Design**: All endpoints follow the same patterns
+3. **Improved Error Handling**: More informative error messages
+4. **Enhanced Security**: Better authentication and authorization
+5. **Educational Value**: Demonstrates Flask-RESTful best practices
 
 ## Authentication
 
-The API uses JWT tokens for authentication. Include the token in the Authorization header:
+The API uses JWT tokens for authentication with improved security and error handling. Include the token in the Authorization header:
 
 ```
 Authorization: Bearer <your-jwt-token>
 ```
 
+### Token Features
+
+- **Expiration**: Tokens are valid for 7 days
+- **Security**: Tokens are signed with the application's secret key
+- **Validation**: Comprehensive token validation with proper error messages
+- **User Context**: Tokens include user ID and are validated against active users
+
 ### Obtaining a Token
 
-Use the `/auth/login` endpoint to get a JWT token after registering/logging in.
+Use the `/auth/login` endpoint to get a JWT token after registering. The new implementation provides better error messages and validation.
 
 ## API Endpoints
 
@@ -637,19 +674,19 @@ Use the `/auth/login` endpoint to get a JWT token after registering/logging in.
 
 ## Error Responses
 
-All endpoints return consistent error responses:
+All endpoints return consistent error responses with improved messaging:
 
 **400 Bad Request:**
 ```json
 {
-    "error": "Description of validation error"
+    "error": "No JSON data provided" | "Empty data provided" | "Username, email, and password are required" | "Title and content are required"
 }
 ```
 
 **401 Unauthorized:**
 ```json
 {
-    "error": "Token is missing" | "Token is invalid or expired" | "Invalid credentials"
+    "error": "Token is missing" | "Token is invalid or expired" | "Invalid credentials" | "Invalid token format" | "User not found or inactive"
 }
 ```
 
@@ -667,12 +704,30 @@ All endpoints return consistent error responses:
 }
 ```
 
+**405 Method Not Allowed:**
+```json
+{
+    "error": "Method not allowed"
+}
+```
+
 **500 Internal Server Error:**
 ```json
 {
-    "error": "Internal server error"
+    "error": "Internal server error" | "Registration failed: <details>" | "Login failed: <details>" | "Failed to create post: <details>"
 }
 ```
+
+## Improved Error Handling
+
+The new Flask-RESTful implementation provides:
+
+- **Consistent Format**: All errors follow the same JSON structure
+- **Detailed Messages**: More specific error descriptions for better debugging
+- **Proper Status Codes**: Appropriate HTTP status codes for different error types
+- **Exception Handling**: Graceful handling of unexpected errors with rollback
+- **Validation Errors**: Clear messages for input validation failures
+- **Security**: Sanitized error messages that don't expose sensitive information
 
 ## Rate Limiting
 
@@ -696,7 +751,7 @@ Currently, there are no rate limits implemented. In production, consider impleme
 
 ```javascript
 class BlogAPI {
-    constructor(baseURL = 'http://localhost:5002/api/v1') {
+    constructor(baseURL = 'http://localhost:5000/api/v1') {
         this.baseURL = baseURL;
         this.token = null;
     }
@@ -816,24 +871,56 @@ You can test the API using tools like:
 
 ```bash
 # Register
-curl -X POST http://localhost:5002/api/v1/auth/register \
+curl -X POST http://localhost:5000/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username": "testuser", "email": "test@example.com", "password": "password123"}'
 
 # Login
-curl -X POST http://localhost:5002/api/v1/auth/login \
+curl -X POST http://localhost:5000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "testuser", "password": "password123"}'
 
 # Get posts (with token)
-curl -X GET http://localhost:5002/api/v1/posts \
+curl -X GET http://localhost:5000/api/v1/posts \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Create post
-curl -X POST http://localhost:5002/api/v1/posts \
+curl -X POST http://localhost:5000/api/v1/posts \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"title": "My Post", "content": "Post content here"}'
+
+# Health check (new endpoint)
+curl -X GET http://localhost:5000/api/v1/health
 ```
 
-This REST API provides comprehensive mobile app integration capabilities while maintaining security and following best practices.
+## Migration from Legacy API
+
+The API has been migrated from the old `api.py` implementation to a new Flask-RESTful structure. Here are the key changes:
+
+### What's New
+
+1. **Flask-RESTful Implementation**: All endpoints now use proper RESTful resource classes
+2. **Better Error Handling**: More specific error messages and proper HTTP status codes
+3. **Improved Validation**: Enhanced input validation with detailed feedback
+4. **Modular Structure**: Code is organized in separate files by functionality
+5. **Enhanced Security**: Better JWT token handling and permission checks
+6. **Health Check Endpoint**: New `/health` endpoint for monitoring
+7. **Consistent Response Format**: All endpoints follow the same response patterns
+
+### Backward Compatibility
+
+- All existing endpoints remain functional
+- Request/response formats are unchanged
+- Authentication mechanism is the same
+- No breaking changes for existing clients
+
+### Recommended Migration
+
+While the old API endpoints still work, it's recommended to:
+1. Update base URLs if needed
+2. Implement proper error handling for the new error formats
+3. Take advantage of the improved validation messages
+4. Use the new health check endpoint for monitoring
+
+This REST API provides comprehensive mobile app integration capabilities while maintaining security and following modern Flask development best practices.

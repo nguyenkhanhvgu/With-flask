@@ -12,6 +12,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_socketio import SocketIO
+from flask_caching import Cache
 
 # Initialize extensions
 # These are created without being bound to a specific app instance
@@ -31,6 +32,9 @@ mail = Mail()
 
 # WebSocket support extension
 socketio = SocketIO()
+
+# Caching extension for performance optimization
+cache = Cache()
 
 # Note: This pattern allows extensions to be configured before the app is created
 # and enables easy testing with different configurations

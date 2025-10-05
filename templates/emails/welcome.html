@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Flask Blog!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border-radius: 0 0 5px 5px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .feature-list {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Welcome to Flask Blog!</h1>
+        <p>Your journey starts here</p>
+    </div>
+    
+    <div class="content">
+        <h2>Hello {{ user.username }}!</h2>
+        
+        <p>Welcome to Flask Blog! We're excited to have you join our community of writers and readers. Your email has been confirmed and your account is now active.</p>
+        
+        <div class="feature-list">
+            <h3>What you can do now:</h3>
+            <ul>
+                <li><strong>Create Posts:</strong> Share your thoughts and ideas with the community</li>
+                <li><strong>Engage:</strong> Comment on posts and join discussions</li>
+                <li><strong>Connect:</strong> Follow other users and build your network</li>
+                <li><strong>Customize:</strong> Update your profile and add an avatar</li>
+                <li><strong>Discover:</strong> Explore posts by category and trending topics</li>
+            </ul>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="{{ url_for('main.home', _external=True) }}" class="button">Start Exploring</a>
+        </div>
+        
+        <p><strong>Getting Started Tips:</strong></p>
+        <ul>
+            <li>Complete your profile to help others connect with you</li>
+            <li>Write your first post to introduce yourself</li>
+            <li>Follow users whose content interests you</li>
+            <li>Engage with the community through comments and likes</li>
+        </ul>
+        
+        <p>If you have any questions or need help getting started, feel free to explore our help section or contact our support team.</p>
+        
+        <p>Happy blogging!</p>
+    </div>
+    
+    <div class="footer">
+        <p>Best regards,<br>The Flask Blog Team</p>
+        <p><small>This is an automated email. Please do not reply to this message.</small></p>
+    </div>
+</body>
+</html>

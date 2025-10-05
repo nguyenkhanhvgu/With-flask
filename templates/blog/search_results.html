@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="search-header">
+        <h1>{{ title }}</h1>
+        <a href="{{ url_for('blog.index') }}" class="btn btn-secondary">← Back to Blog</a>
+    </div>
+
+    {% if query %}
+    <div class="search-info">
+        <p>Showing results for: "<strong>{{ query }}</strong>"</p>
+        {% if posts.total %}
+        <p class="results-count">Found {{ posts.total }} result{{ 's' if posts.total != 1 else '' }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Search Form -->
+    <div class="search-form-container">
+        <form method="GET" action="{{ url_for('blog.search') }}" class="search-form">
+            <div class="search-input-group">
+                <input type="text" name="q" value="{{ query }}" placeholder="Search posts..." class="form-control"
+                    required>
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+    </div>
+
+    {% if posts.items %}
+    <div class="posts-grid">
+        {% for post in posts.items %}
+        <article class="post-card">
+            {% if post.image_filename %}
+            <div class="post-image">
+                <img src="{{ url_for('static', filename='uploads/posts/' + post.image_filename) }}"
+                    alt="{{ post.title }}" style="width: 100%; height: 200px; object-fit: cover;">
+            </div>
+            {% endif %}
+
+            <div class="post-content">
+                <h2><a href="{{ url_for('blog.post_detail', id=post.id) }}">{{ post.title }}</a></h2>
+                <div class="post-meta">
+                    <span class="author">By <a
+                            href="{{ url_for('main.user_profile', username=post.author.username) }}">{{
+                            post.author.username }}</a></span>
+                    <span class="date">{{ post.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                    {% if post.category %}
+                    <span class="category">in <a href="{{ url_for('blog.category_posts', id=post.category.id) }}">{{
+                            post.category.name }}</a></span>
+                    {% endif %}
+                </div>
+                <p class="post-excerpt">{{ post.content[:300] }}{% if post.content|length > 300 %}...{% endif %}</p>
+                <div class="post-actions">
+                    <a href="{{ url_for('blog.post_detail', id=post.id) }}" class="btn btn-primary">Read More</a>
+                    <span class="comment-count">{{ post.comments|length }} comments</span>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if posts.pages > 1 %}
+    <div class="pagination">
+        {% if posts.has_prev %}
+        <a href="{{ url_for('blog.search', q=query, page=posts.prev_num) }}" class="btn btn-secondary">Previous</a>
+        {% endif %}
+
+        {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+        {% if page_num %}
+        {% if page_num != posts.page %}
+        <a href="{{ url_for('blog.search', q=query, page=page_num) }}" class="btn btn-secondary">{{ page_num }}</a>
+        {% else %}
+        <span class="btn btn-primary current-page">{{ page_num }}</span>
+        {% endif %}
+        {% else %}
+        <span class="pagination-ellipsis">...</span>
+        {% endif %}
+        {% endfor %}
+
+        {% if posts.has_next %}
+        <a href="{{ url_for('blog.search', q=query, page=posts.next_num) }}" class="btn btn-secondary">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="no-results">
+        <h3>No posts found</h3>
+        <p>No posts match your search for "<strong>{{ query }}</strong>". Try different keywords or browse by category.
+        </p>
+        <div class="no-results-actions">
+            <a href="{{ url_for('blog.index') }}" class="btn btn-primary">Browse All Posts</a>
+            <a href="{{ url_for('blog.categories') }}" class="btn btn-secondary">Browse Categories</a>
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="no-query">
+        <h3>Search Posts</h3>
+        <p>Enter a search term to find posts by title or content.</p>
+
+        <!-- Search Form -->
+        <form method="GET" action="{{ url_for('blog.search') }}" class="search-form">
+            <div class="search-input-group">
+                <input type="text" name="q" placeholder="Search posts..." class="form-control" required>
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .search-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .search-info {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #007bff;
+    }
+
+    .search-info p {
+        margin: 0;
+    }
+
+    .results-count {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-top: 0.5rem !important;
+    }
+
+    .search-form-container {
+        margin-bottom: 2rem;
+    }
+
+    .search-form .search-input-group {
+        display: flex;
+        gap: 0.5rem;
+        max-width: 500px;
+    }
+
+    .search-input-group .form-control {
+        flex: 1;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+
+    .search-input-group .form-control:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+
+    .posts-grid {
+        display: grid;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .post-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .post-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .post-content {
+        padding: 1.5rem;
+    }
+
+    .post-content h2 {
+        margin: 0 0 1rem 0;
+    }
+
+    .post-content h2 a {
+        color: #333;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .post-content h2 a:hover {
+        color: #007bff;
+    }
+
+    .post-meta {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+        color: #6c757d;
+        flex-wrap: wrap;
+    }
+
+    .post-meta a {
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    .post-meta a:hover {
+        text-decoration: underline;
+    }
+
+    .post-excerpt {
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        color: #333;
+    }
+
+    .post-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .comment-count {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .no-results,
+    .no-query {
+        text-align: center;
+        padding: 3rem 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+
+    .no-results h3,
+    .no-query h3 {
+        color: #495057;
+        margin-bottom: 1rem;
+    }
+
+    .no-results-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+    }
+
+    .pagination .current-page {
+        font-weight: bold;
+    }
+
+    .pagination-ellipsis {
+        padding: 0.375rem 0.75rem;
+        color: #6c757d;
+    }
+
+    @media (max-width: 768px) {
+        .search-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-input-group {
+            flex-direction: column;
+        }
+
+        .search-input-group .form-control,
+        .search-input-group .btn {
+            width: 100%;
+        }
+
+        .post-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .no-results-actions {
+            flex-direction: column;
+        }
+
+        .no-results-actions .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
