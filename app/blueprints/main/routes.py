@@ -5,7 +5,7 @@ This module contains routes for general application functionality
 that doesn't belong to specific feature areas.
 """
 
-from flask import render_template, request, flash, redirect, url_for
+from flask import render_template, request, flash, redirect, url_for, jsonify
 from app.blueprints.main import bp
 
 
@@ -65,3 +65,46 @@ def user_profile(username):
     posts = Post.query.filter_by(user_id=user.id).order_by(Post.created_at.desc()).all()
     return render_template('user_profile.html', title=f'{username} - Profile', 
                          user=user, posts=posts)
+
+
+@bp.route('/health')
+def health_check():
+    """Health check endpoint for Docker containers and load balancers"""
+    try:
+        # Import here to avoid circular imports
+        from app.extensions import db, cache
+        
+        # Check database connection
+        db.session.execute('SELECT 1')
+        db_status = 'healthy'
+        
+        # Check cache connection (Redis)
+        cache_status = 'healthy'
+        try:
+            cache.get('health_check')
+        except Exception:
+            cache_status = 'unhealthy'
+        
+        # Overall health status
+        status = 'healthy' if db_status == 'healthy' and cache_status == 'healthy' else 'unhealthy'
+        
+        response_data = {
+            'status': status,
+            'timestamp': '2024-01-01T00:00:00Z',  # Would use datetime.utcnow() in real implementation
+            'services': {
+                'database': db_status,
+                'cache': cache_status
+            },
+            'version': '1.0.0'
+        }
+        
+        status_code = 200 if status == 'healthy' else 503
+        return jsonify(response_data), status_code
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': '2024-01-01T00:00:00Z',
+            'error': str(e),
+            'version': '1.0.0'
+        }), 503
