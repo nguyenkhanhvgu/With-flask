@@ -6,6 +6,7 @@ from flask import request
 from flask_restful import Resource
 from app.models import Post, Category
 from app.extensions import db
+from app.middleware import api_rate_limit, rate_limit
 from .base import BaseResource, token_required, post_to_dict
 import datetime
 
@@ -13,6 +14,7 @@ import datetime
 class PostListResource(BaseResource):
     """Resource for handling multiple posts"""
     
+    @api_rate_limit(limit=200, window=3600)  # 200 requests per hour for listing posts
     def get(self):
         """Get list of posts with optional filtering"""
         try:
@@ -54,6 +56,7 @@ class PostListResource(BaseResource):
         except Exception as e:
             return {'error': f'Failed to fetch posts: {str(e)}'}, 500
     
+    @api_rate_limit(limit=10, window=3600)  # 10 post creations per hour
     @token_required
     def post(self):
         """Create a new post"""
@@ -100,6 +103,7 @@ class PostListResource(BaseResource):
 class PostResource(BaseResource):
     """Resource for handling individual posts"""
     
+    @api_rate_limit(limit=300, window=3600)  # 300 individual post views per hour
     def get(self, post_id):
         """Get specific post by ID with full content"""
         try:
@@ -109,6 +113,7 @@ class PostResource(BaseResource):
         except Exception as e:
             return {'error': f'Failed to fetch post: {str(e)}'}, 500
     
+    @api_rate_limit(limit=20, window=3600)  # 20 post updates per hour
     @token_required
     def put(self, post_id):
         """Update an existing post"""
@@ -153,6 +158,7 @@ class PostResource(BaseResource):
             db.session.rollback()
             return {'error': f'Failed to update post: {str(e)}'}, 500
     
+    @api_rate_limit(limit=5, window=3600)  # 5 post deletions per hour
     @token_required
     def delete(self, post_id):
         """Delete a post"""

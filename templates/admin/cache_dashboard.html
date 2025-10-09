@@ -1,0 +1,543 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Cache Management - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-memory"></i> Cache Management</h2>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="refreshStats()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="warmCache()">
+                        <i class="fas fa-fire"></i> Warm Cache
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="showInvalidateModal()">
+                        <i class="fas fa-trash-alt"></i> Invalidate
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="clearCache()">
+                        <i class="fas fa-broom"></i> Clear All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Cache Type</h4>
+                            <p class="card-text">{{ cache_stats.get('cache_type', 'Unknown') }}</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-database fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Hit Rate</h4>
+                            <p class="card-text" id="hit-rate">{{ cache_stats.get('hit_rate', 0) }}%</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-bullseye fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Memory Used</h4>
+                            <p class="card-text" id="memory-used">{{ cache_stats.get('used_memory', 'N/A') }}</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-memory fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Connected Clients</h4>
+                            <p class="card-text" id="connected-clients">{{ cache_stats.get('connected_clients', 'N/A') }}</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache Operations -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line"></i> Cache Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6>Cache Hits</h6>
+                                <span class="badge badge-success badge-lg" id="cache-hits">
+                                    {{ cache_stats.get('keyspace_hits', 0) }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6>Cache Misses</h6>
+                                <span class="badge badge-danger badge-lg" id="cache-misses">
+                                    {{ cache_stats.get('keyspace_misses', 0) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <button class="btn btn-outline-primary btn-sm" onclick="testCachePerformance()">
+                            <i class="fas fa-stopwatch"></i> Test Performance
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-cogs"></i> Cache Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><strong>Default Timeout:</strong></td>
+                                <td>{{ cache_config.default_timeout }} seconds</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Key Prefix:</strong></td>
+                                <td><code>{{ cache_config.key_prefix }}</code></td>
+                            </tr>
+                            {% if cache_config.type == 'RedisCache' %}
+                            <tr>
+                                <td><strong>Redis Host:</strong></td>
+                                <td>{{ cache_config.redis_host }}:{{ cache_config.redis_port }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Redis DB:</strong></td>
+                                <td>{{ cache_config.redis_db }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache Testing -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-vial"></i> Cache Testing & Monitoring</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-info btn-block" onclick="testCache()">
+                                <i class="fas fa-flask"></i> Test Cache Operations
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-secondary btn-block" onclick="viewCacheKeys()">
+                                <i class="fas fa-key"></i> View Cache Keys
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-warning btn-block" onclick="testCachePerformance()">
+                                <i class="fas fa-tachometer-alt"></i> Performance Test
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Area -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card" id="results-card" style="display: none;">
+                <div class="card-header">
+                    <h5 id="results-title"><i class="fas fa-chart-bar"></i> Results</h5>
+                </div>
+                <div class="card-body">
+                    <div id="results-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cache Invalidation Modal -->
+<div class="modal fade" id="invalidateModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Invalidate Cache Pattern</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="invalidateForm">
+                    <div class="form-group">
+                        <label for="cachePattern">Select Cache Pattern:</label>
+                        <select class="form-control" id="cachePattern" name="pattern" required>
+                            <option value="">-- Select Pattern --</option>
+                            <option value="posts">Posts Cache (posts:*)</option>
+                            <option value="users">Users Cache (user:*)</option>
+                            <option value="trending">Trending Cache (trending:*)</option>
+                            <option value="search">Search Cache (search:*)</option>
+                            <option value="api">API Cache (api:*)</option>
+                            <option value="profiles">User Profiles (profile:*)</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> This will invalidate all cache entries matching the selected pattern.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="invalidateCache()">
+                    <i class="fas fa-trash-alt"></i> Invalidate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Cache management JavaScript functions
+function refreshStats() {
+    showLoading('Refreshing cache statistics...');
+    
+    fetch('{{ url_for("admin.cache_stats_api") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatsDisplay(data.stats);
+                showAlert('Cache statistics refreshed successfully.', 'success');
+            } else {
+                showAlert('Failed to refresh cache statistics.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error refreshing cache statistics.', 'error');
+        })
+        .finally(() => {
+            hideLoading();
+        });
+}
+
+function updateStatsDisplay(stats) {
+    document.getElementById('hit-rate').textContent = stats.hit_rate + '%';
+    document.getElementById('memory-used').textContent = stats.used_memory || 'N/A';
+    document.getElementById('connected-clients').textContent = stats.connected_clients || 'N/A';
+    document.getElementById('cache-hits').textContent = stats.keyspace_hits || 0;
+    document.getElementById('cache-misses').textContent = stats.keyspace_misses || 0;
+}
+
+function warmCache() {
+    if (!confirm('This will warm the cache with popular content. Continue?')) {
+        return;
+    }
+    
+    showLoading('Warming cache...');
+    
+    fetch('{{ url_for("admin.warm_cache") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Cache warmed successfully!', 'success');
+            refreshStats();
+        } else {
+            showAlert('Failed to warm cache: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error warming cache.', 'error');
+    })
+    .finally(() => {
+        hideLoading();
+    });
+}
+
+function clearCache() {
+    if (!confirm('This will clear ALL cache entries. Are you sure?')) {
+        return;
+    }
+    
+    showLoading('Clearing cache...');
+    
+    fetch('{{ url_for("admin.clear_cache") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('All cache entries cleared successfully!', 'success');
+            refreshStats();
+        } else {
+            showAlert('Failed to clear cache: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error clearing cache.', 'error');
+    })
+    .finally(() => {
+        hideLoading();
+    });
+}
+
+function showInvalidateModal() {
+    $('#invalidateModal').modal('show');
+}
+
+function invalidateCache() {
+    const pattern = document.getElementById('cachePattern').value;
+    
+    if (!pattern) {
+        showAlert('Please select a cache pattern.', 'error');
+        return;
+    }
+    
+    $('#invalidateModal').modal('hide');
+    showLoading('Invalidating cache pattern...');
+    
+    fetch('{{ url_for("admin.invalidate_cache") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pattern: pattern })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Cache pattern invalidated successfully!', 'success');
+            refreshStats();
+        } else {
+            showAlert('Failed to invalidate cache: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error invalidating cache.', 'error');
+    })
+    .finally(() => {
+        hideLoading();
+    });
+}
+
+function testCache() {
+    showLoading('Testing cache operations...');
+    
+    fetch('{{ url_for("admin.test_cache") }}')
+        .then(response => response.json())
+        .then(data => {
+            showResults('Cache Test Results', formatTestResults(data));
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error testing cache.', 'error');
+        })
+        .finally(() => {
+            hideLoading();
+        });
+}
+
+function viewCacheKeys() {
+    showLoading('Loading cache keys...');
+    
+    fetch('{{ url_for("admin.cache_keys") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showResults('Cache Keys Sample', formatCacheKeys(data));
+            } else {
+                showAlert('Failed to load cache keys.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error loading cache keys.', 'error');
+        })
+        .finally(() => {
+            hideLoading();
+        });
+}
+
+function testCachePerformance() {
+    showLoading('Running performance test...');
+    
+    fetch('{{ url_for("admin.cache_performance") }}')
+        .then(response => response.json())
+        .then(data => {
+            showResults('Cache Performance Test', formatPerformanceResults(data));
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error running performance test.', 'error');
+        })
+        .finally(() => {
+            hideLoading();
+        });
+}
+
+function formatTestResults(data) {
+    if (!data.success) {
+        return `<div class="alert alert-danger">Test failed: ${data.error}</div>`;
+    }
+    
+    const results = data.test_results;
+    return `
+        <div class="alert alert-success">Cache test completed successfully!</div>
+        <table class="table table-sm">
+            <tr><td><strong>Set Operation:</strong></td><td><span class="badge badge-${results.set_operation === 'success' ? 'success' : 'danger'}">${results.set_operation}</span></td></tr>
+            <tr><td><strong>Get Operation:</strong></td><td><span class="badge badge-${results.get_operation === 'success' ? 'success' : 'danger'}">${results.get_operation}</span></td></tr>
+            <tr><td><strong>Delete Operation:</strong></td><td><span class="badge badge-${results.delete_operation === 'success' ? 'success' : 'danger'}">${results.delete_operation}</span></td></tr>
+            <tr><td><strong>Test Value:</strong></td><td><code>${results.test_value}</code></td></tr>
+            <tr><td><strong>Retrieved Value:</strong></td><td><code>${results.retrieved_value}</code></td></tr>
+        </table>
+    `;
+}
+
+function formatCacheKeys(data) {
+    if (!data.success) {
+        return `<div class="alert alert-danger">Failed to load keys: ${data.error}</div>`;
+    }
+    
+    let html = `<div class="alert alert-info">${data.note}</div>`;
+    html += `<p><strong>Total keys shown:</strong> ${data.total_shown}</p>`;
+    
+    if (data.keys.length > 0) {
+        html += '<div class="list-group" style="max-height: 400px; overflow-y: auto;">';
+        data.keys.forEach(key => {
+            html += `<div class="list-group-item"><code>${key}</code></div>`;
+        });
+        html += '</div>';
+    } else {
+        html += '<div class="alert alert-warning">No cache keys found.</div>';
+    }
+    
+    return html;
+}
+
+function formatPerformanceResults(data) {
+    if (!data.success) {
+        return `<div class="alert alert-danger">Performance test failed: ${data.error}</div>`;
+    }
+    
+    const metrics = data.performance_metrics;
+    return `
+        <div class="alert alert-success">Performance test completed successfully!</div>
+        <table class="table table-sm">
+            <tr><td><strong>Test Iterations:</strong></td><td>${metrics.test_iterations}</td></tr>
+            <tr><td><strong>Total Operations:</strong></td><td>${metrics.total_operations}</td></tr>
+            <tr><td><strong>Total Time:</strong></td><td>${metrics.total_time_seconds} seconds</td></tr>
+            <tr><td><strong>Average Operation Time:</strong></td><td>${metrics.average_operation_time_ms} ms</td></tr>
+            <tr><td><strong>Operations per Second:</strong></td><td>${metrics.operations_per_second}</td></tr>
+        </table>
+    `;
+}
+
+function showResults(title, content) {
+    document.getElementById('results-title').innerHTML = `<i class="fas fa-chart-bar"></i> ${title}`;
+    document.getElementById('results-content').innerHTML = content;
+    document.getElementById('results-card').style.display = 'block';
+    
+    // Scroll to results
+    document.getElementById('results-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showLoading(message) {
+    // You can implement a loading spinner here
+    console.log('Loading:', message);
+}
+
+function hideLoading() {
+    // Hide loading spinner
+    console.log('Loading complete');
+}
+
+function showAlert(message, type) {
+    // Create and show alert
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    `;
+    
+    // Insert at top of container
+    const container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Auto-refresh stats every 30 seconds
+setInterval(refreshStats, 30000);
+</script>
+{% endblock %}

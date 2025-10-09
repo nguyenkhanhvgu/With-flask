@@ -6,12 +6,14 @@ from flask import request
 from flask_restful import Resource
 from app.models import User
 from app.extensions import db
+from app.middleware import auth_rate_limit, api_rate_limit
 from .base import BaseResource, generate_token, token_required, user_to_dict
 
 
 class RegisterResource(BaseResource):
     """User registration resource"""
     
+    @auth_rate_limit(limit=3, window=300)  # 3 registration attempts per 5 minutes
     def post(self):
         """Register a new user"""
         try:
@@ -64,6 +66,7 @@ class RegisterResource(BaseResource):
 class LoginResource(BaseResource):
     """User login resource"""
     
+    @auth_rate_limit(limit=5, window=300)  # 5 login attempts per 5 minutes
     def post(self):
         """Authenticate user and return JWT token"""
         try:
@@ -108,6 +111,7 @@ class LoginResource(BaseResource):
 class VerifyTokenResource(BaseResource):
     """Token verification resource"""
     
+    @api_rate_limit(limit=100, window=3600)  # 100 token verifications per hour
     @token_required
     def get(self):
         """Verify if token is valid and return user info"""

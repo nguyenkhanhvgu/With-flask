@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="trending-header">
+        <h1>Trending Posts</h1>
+        <div class="time-filters">
+            <a href="{{ url_for('blog.trending_posts', days=1) }}" 
+               class="btn {% if days == 1 %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                Today
+            </a>
+            <a href="{{ url_for('blog.trending_posts', days=7) }}" 
+               class="btn {% if days == 7 %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                This Week
+            </a>
+            <a href="{{ url_for('blog.trending_posts', days=30) }}" 
+               class="btn {% if days == 30 %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                This Month
+            </a>
+        </div>
+    </div>
+    
+    <div class="trending-nav">
+        <a href="{{ url_for('blog.index') }}" class="btn btn-outline-secondary">All Posts</a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('blog.feed') }}" class="btn btn-outline-primary">Your Feed</a>
+        {% endif %}
+        <a href="{{ url_for('blog.trending_posts') }}" class="btn btn-primary">Trending</a>
+    </div>
+    
+    {% if posts.items %}
+        <div class="trending-posts">
+            {% for post in posts.items %}
+            <article class="trending-post-card">
+                <div class="trending-rank">
+                    <span class="rank-number">#{{ loop.index + (posts.page - 1) * posts.per_page }}</span>
+                    <div class="trending-indicator">
+                        <i class="fas fa-fire text-danger"></i>
+                    </div>
+                </div>
+                
+                <div class="post-content">
+                    <div class="post-header">
+                        <div class="author-info">
+                            {% if post.author.avatar_filename %}
+                                <img src="{{ url_for('static', filename='uploads/avatars/' + post.author.avatar_filename) }}" 
+                                     alt="{{ post.author.username }}" class="author-avatar">
+                            {% else %}
+                                <img src="{{ url_for('static', filename='uploads/avatars/default-avatar.png') }}" 
+                                     alt="Default Avatar" class="author-avatar">
+                            {% endif %}
+                            <div class="author-details">
+                                <strong><a href="{{ url_for('main.user_profile', username=post.author.username) }}">{{ post.author.username }}</a></strong>
+                                <div class="post-meta">
+                                    <span class="post-date">{{ post.created_at.strftime('%B %d, %Y') }}</span>
+                                    {% if post.category %}
+                                    <span class="post-category">
+                                        <a href="{{ url_for('blog.category_posts', id=post.category.id) }}">{{ post.category.name }}</a>
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="trending-stats">
+                            <div class="stat-item">
+                                <i class="fas fa-heart text-danger"></i>
+                                <span>{{ post.like_count }}</span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="fas fa-comment text-primary"></i>
+                                <span>{{ post.comments|length }}</span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="fas fa-eye text-info"></i>
+                                <span>{{ post.view_count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if post.image_filename %}
+                    <div class="post-image">
+                        <img src="{{ url_for('static', filename='uploads/posts/' + post.image_filename) }}" 
+                             alt="{{ post.title }}" class="img-fluid">
+                    </div>
+                    {% endif %}
+                    
+                    <div class="post-body">
+                        <h3><a href="{{ url_for('blog.post_detail', id=post.id) }}">{{ post.title }}</a></h3>
+                        <p class="post-excerpt">{{ post.get_excerpt(150) }}</p>
+                    </div>
+                    
+                    <div class="post-actions">
+                        <div class="social-actions">
+                            {% if current_user.is_authenticated %}
+                            <button class="btn btn-sm btn-outline-danger like-btn" 
+                                    data-post-id="{{ post.id }}"
+                                    onclick="likePost({{ post.id }}, this)"
+                                    title="{% if post.is_liked_by(current_user) %}Unlike{% else %}Like{% endif %}">
+                                <i class="{% if post.is_liked_by(current_user) %}fas{% else %}far{% endif %} fa-heart"></i>
+                                <span class="like-count">{{ post.like_count }}</span>
+                            </button>
+                            {% else %}
+                            <span class="btn btn-sm btn-outline-danger disabled">
+                                <i class="far fa-heart"></i>
+                                <span>{{ post.like_count }}</span>
+                            </span>
+                            {% endif %}
+                            
+                            <a href="{{ url_for('blog.post_detail', id=post.id) }}#comments-section" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="far fa-comment"></i>
+                                {{ post.comments|length }}
+                            </a>
+                            
+                            <button class="btn btn-sm btn-outline-secondary share-btn" 
+                                    onclick="sharePost('{{ post.get_absolute_url() }}', '{{ post.title }}')"
+                                    title="Share">
+                                <i class="fas fa-share"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="post-info">
+                            <span class="reading-time">{{ post.get_reading_time() }} min read</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if posts.pages > 1 %}
+        <nav aria-label="Trending posts pagination">
+            <ul class="pagination justify-content-center">
+                {% if posts.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('blog.trending_posts', page=posts.prev_num, days=days) }}">Previous</a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in posts.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != posts.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('blog.trending_posts', page=page_num, days=days) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if posts.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('blog.trending_posts', page=posts.next_num, days=days) }}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="no-trending">
+            <h3>No trending posts found</h3>
+            <p>There are no trending posts for the selected time period.</p>
+            <a href="{{ url_for('blog.index') }}" class="btn btn-primary">View All Posts</a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function likePost(postId, button) {
+    fetch(`/blog/post/${postId}/like`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const icon = button.querySelector('i');
+            const countSpan = button.querySelector('.like-count');
+            
+            if (data.liked) {
+                icon.className = 'fas fa-heart';
+                button.title = 'Unlike';
+            } else {
+                icon.className = 'far fa-heart';
+                button.title = 'Like';
+            }
+            
+            countSpan.textContent = data.like_count;
+        } else {
+            alert(data.message || 'Error processing like');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error processing like');
+    });
+}
+
+function sharePost(url, title) {
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            url: url
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(url).then(() => {
+            showNotification('Link copied to clipboard!');
+        });
+    }
+}
+
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-success notification';
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '1';
+    }, 100);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+</script>
+
+<style>
+.trending-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.time-filters {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.trending-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.trending-post-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    transition: box-shadow 0.2s;
+}
+
+.trending-post-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.trending-rank {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 60px;
+}
+
+.rank-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.trending-indicator {
+    font-size: 1.2rem;
+}
+
+.post-content {
+    flex: 1;
+}
+
+.post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.author-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.author-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.author-details strong a {
+    color: #333;
+    text-decoration: none;
+}
+
+.post-meta {
+    font-size: 0.85rem;
+    color: #6c757d;
+    display: flex;
+    gap: 1rem;
+}
+
+.post-category a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.trending-stats {
+    display: flex;
+    gap: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.post-image {
+    margin-bottom: 1rem;
+}
+
+.post-image img {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.post-body h3 {
+    margin-bottom: 0.75rem;
+}
+
+.post-body h3 a {
+    color: #333;
+    text-decoration: none;
+}
+
+.post-body h3 a:hover {
+    color: #007bff;
+}
+
+.post-excerpt {
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.post-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.social-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.post-info {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.no-trending {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+
+@media (max-width: 768px) {
+    .trending-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .time-filters {
+        justify-content: center;
+    }
+    
+    .trending-post-card {
+        flex-direction: column;
+    }
+    
+    .trending-rank {
+        flex-direction: row;
+        justify-content: center;
+        min-width: auto;
+    }
+    
+    .post-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .trending-stats {
+        justify-content: center;
+    }
+    
+    .post-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .social-actions {
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}

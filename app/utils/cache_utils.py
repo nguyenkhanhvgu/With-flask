@@ -304,40 +304,14 @@ def warm_cache():
     """
     try:
         # Import here to avoid circular imports
-        from app.models.blog import Post
-        from app.models.user import User
+        from app.services.blog_service import BlogService
         
-        # Cache recent posts (using current model structure)
-        recent_posts = Post.query.order_by(Post.created_at.desc()).limit(10).all()
-        
-        cache.set(
-            CacheKeyGenerator.trending_posts_key(10),
-            recent_posts,
-            timeout=600  # 10 minutes
-        )
-        
-        # Cache recent posts for homepage
-        homepage_posts = Post.query.order_by(Post.created_at.desc()).limit(5).all()
-        
-        cache.set(
-            CacheKeyGenerator.posts_list_key(page=1, per_page=5),
-            homepage_posts,
-            timeout=300  # 5 minutes
-        )
-        
-        # Cache active users (if any exist)
-        active_users = User.query.limit(10).all()
-        if active_users:
-            cache.set(
-                "active_users",
-                active_users,
-                timeout=600
-            )
-        
-        current_app.logger.info("Cache warmed successfully")
+        # Use BlogService for comprehensive cache warming
+        return BlogService.warm_popular_content()
         
     except Exception as e:
         current_app.logger.error(f"Failed to warm cache: {e}")
+        return False
 
 
 def get_cache_stats():

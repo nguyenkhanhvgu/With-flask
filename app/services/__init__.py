@@ -8,5 +8,6 @@ and testable.
 """
 
 from .auth_service import AuthService
+from .blog_service import BlogService
 
-__all__ = ['AuthService']
+__all__ = ['AuthService', 'BlogService']

@@ -22,10 +22,11 @@ from app.models.user import User
 from app.models.blog import Post, Comment, Category
 from app.models.role import Role, Permission
 from app.models.follow import Follow
+from app.models.like import PostLike
 from app.models.analytics import PostView, Notification
 
 # Make models available at package level
 __all__ = [
     'BaseModel', 'User', 'Post', 'Comment', 'Category', 
-    'Role', 'Permission', 'Follow', 'PostView', 'Notification'
+    'Role', 'Permission', 'Follow', 'PostLike', 'PostView', 'Notification'
 ]

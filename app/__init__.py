@@ -17,7 +17,8 @@ def create_app(config_name='development'):
     Application factory function that creates and configures a Flask application instance.
     
     Args:
-        config_name (str): The configuration environment to use ('development', 'testing', 'production')
+        config_name (str or dict): The configuration environment to use ('development', 'testing', 'production')
+                                  or a dictionary of configuration values
         
     Returns:
         Flask: Configured Flask application instance
@@ -32,7 +33,12 @@ def create_app(config_name='development'):
                 static_folder='../static')
     
     # Load configuration based on environment
-    app.config.from_object(config[config_name])
+    if isinstance(config_name, dict):
+        # If config_name is a dictionary, use it directly
+        app.config.update(config_name)
+    else:
+        # If config_name is a string, use it as a key to get config object
+        app.config.from_object(config[config_name])
     
     # Initialize Flask extensions with the app instance
     # This pattern allows extensions to be configured before the app is created

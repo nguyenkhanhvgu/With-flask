@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <div class="feed-header">
+        <h1>Your Personalized Feed</h1>
+        <div class="feed-nav">
+            <a href="{{ url_for('blog.index') }}" class="btn btn-outline-secondary">All Posts</a>
+            <a href="{{ url_for('blog.feed') }}" class="btn btn-primary">Your Feed</a>
+            <a href="{{ url_for('blog.trending_posts') }}" class="btn btn-outline-info">Trending</a>
+        </div>
+    </div>
+    
+    {% if message %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> {{ message }}
+        <div class="mt-2">
+            <a href="{{ url_for('main.users') }}" class="btn btn-sm btn-primary">Find Users to Follow</a>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Follow Suggestions -->
+    {% if suggestions %}
+    <div class="follow-suggestions">
+        <h4>Suggested Users to Follow</h4>
+        <div class="suggestions-grid">
+            {% for user in suggestions %}
+            <div class="suggestion-card">
+                <div class="user-info">
+                    {% if user.avatar_filename %}
+                        <img src="{{ url_for('static', filename='uploads/avatars/' + user.avatar_filename) }}" 
+                             alt="{{ user.username }}" class="suggestion-avatar">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='uploads/avatars/default-avatar.png') }}" 
+                             alt="Default Avatar" class="suggestion-avatar">
+                    {% endif %}
+                    <div class="user-details">
+                        <strong><a href="{{ url_for('main.user_profile', username=user.username) }}">{{ user.username }}</a></strong>
+                        <div class="user-stats">
+                            <span>{{ user.follower_count }} followers</span>
+                            <span>{{ user.post_count }} posts</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-primary follow-btn" 
+                        data-username="{{ user.username }}"
+                        onclick="followUser('{{ user.username }}', this)">
+                    Follow
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Posts Feed -->
+    <div class="posts-feed">
+        {% if posts.items %}
+            {% for post in posts.items %}
+            <article class="post-card">
+                <div class="post-header">
+                    <div class="author-info">
+                        {% if post.author.avatar_filename %}
+                            <img src="{{ url_for('static', filename='uploads/avatars/' + post.author.avatar_filename) }}" 
+                                 alt="{{ post.author.username }}" class="author-avatar">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='uploads/avatars/default-avatar.png') }}" 
+                                 alt="Default Avatar" class="author-avatar">
+                        {% endif %}
+                        <div class="author-details">
+                            <strong><a href="{{ url_for('main.user_profile', username=post.author.username) }}">{{ post.author.username }}</a></strong>
+                            <div class="post-meta">
+                                <span class="post-date">{{ post.created_at.strftime('%B %d, %Y') }}</span>
+                                {% if post.category %}
+                                <span class="post-category">
+                                    <a href="{{ url_for('blog.category_posts', id=post.category.id) }}">{{ post.category.name }}</a>
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if current_user.id != post.user_id %}
+                    <button class="btn btn-sm btn-outline-primary follow-btn" 
+                            data-username="{{ post.author.username }}"
+                            onclick="followUser('{{ post.author.username }}', this)"
+                            style="{% if current_user.is_following(post.author) %}display: none;{% endif %}">
+                        Follow
+                    </button>
+                    <button class="btn btn-sm btn-primary unfollow-btn" 
+                            data-username="{{ post.author.username }}"
+                            onclick="followUser('{{ post.author.username }}', this)"
+                            style="{% if not current_user.is_following(post.author) %}display: none;{% endif %}">
+                        Following
+                    </button>
+                    {% endif %}
+                </div>
+                
+                {% if post.image_filename %}
+                <div class="post-image">
+                    <img src="{{ url_for('static', filename='uploads/posts/' + post.image_filename) }}" 
+                         alt="{{ post.title }}" class="img-fluid">
+                </div>
+                {% endif %}
+                
+                <div class="post-content">
+                    <h3><a href="{{ url_for('blog.post_detail', id=post.id) }}">{{ post.title }}</a></h3>
+                    <p class="post-excerpt">{{ post.get_excerpt(200) }}</p>
+                </div>
+                
+                <div class="post-actions">
+                    <div class="social-actions">
+                        <button class="btn btn-sm btn-outline-danger like-btn" 
+                                data-post-id="{{ post.id }}"
+                                onclick="likePost({{ post.id }}, this)"
+                                title="{% if post.is_liked_by(current_user) %}Unlike{% else %}Like{% endif %}">
+                            <i class="{% if post.is_liked_by(current_user) %}fas{% else %}far{% endif %} fa-heart"></i>
+                            <span class="like-count">{{ post.like_count }}</span>
+                        </button>
+                        
+                        <a href="{{ url_for('blog.post_detail', id=post.id) }}#comments-section" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="far fa-comment"></i>
+                            {{ post.comments|length }}
+                        </a>
+                        
+                        <button class="btn btn-sm btn-outline-secondary share-btn" 
+                                onclick="sharePost('{{ post.get_absolute_url() }}', '{{ post.title }}')"
+                                title="Share">
+                            <i class="fas fa-share"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="post-stats">
+                        <span class="reading-time">{{ post.get_reading_time() }} min read</span>
+                        <span class="view-count">{{ post.view_count }} views</span>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+            
+            <!-- Pagination -->
+            {% if posts.pages > 1 %}
+            <nav aria-label="Feed pagination">
+                <ul class="pagination justify-content-center">
+                    {% if posts.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('blog.feed', page=posts.prev_num) }}">Previous</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in posts.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != posts.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('blog.feed', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if posts.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('blog.feed', page=posts.next_num) }}">Next</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        {% else %}
+            <div class="no-posts">
+                <h3>No posts in your feed yet</h3>
+                <p>Follow some users to see their posts in your personalized feed.</p>
+                <a href="{{ url_for('main.users') }}" class="btn btn-primary">Find Users to Follow</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Social interaction functions
+function likePost(postId, button) {
+    fetch(`/blog/post/${postId}/like`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const icon = button.querySelector('i');
+            const countSpan = button.querySelector('.like-count');
+            
+            if (data.liked) {
+                icon.className = 'fas fa-heart';
+                button.title = 'Unlike';
+            } else {
+                icon.className = 'far fa-heart';
+                button.title = 'Like';
+            }
+            
+            countSpan.textContent = data.like_count;
+        } else {
+            alert(data.message || 'Error processing like');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error processing like');
+    });
+}
+
+function followUser(username, button) {
+    fetch(`/blog/user/${username}/follow`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Find both follow and unfollow buttons for this user
+            const followBtns = document.querySelectorAll(`[data-username="${username}"].follow-btn`);
+            const unfollowBtns = document.querySelectorAll(`[data-username="${username}"].unfollow-btn`);
+            
+            if (data.following) {
+                followBtns.forEach(btn => btn.style.display = 'none');
+                unfollowBtns.forEach(btn => btn.style.display = 'inline-block');
+            } else {
+                followBtns.forEach(btn => btn.style.display = 'inline-block');
+                unfollowBtns.forEach(btn => btn.style.display = 'none');
+            }
+            
+            // Show success message
+            showNotification(data.message);
+        } else {
+            alert(data.message || 'Error processing follow');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error processing follow');
+    });
+}
+
+function sharePost(url, title) {
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            url: url
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(url).then(() => {
+            showNotification('Link copied to clipboard!');
+        });
+    }
+}
+
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-success notification';
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '1';
+    }, 100);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+</script>
+
+<style>
+.feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.feed-nav {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.follow-suggestions {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.suggestions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.suggestion-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.suggestion-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-details strong a {
+    color: #333;
+    text-decoration: none;
+}
+
+.user-stats {
+    font-size: 0.85rem;
+    color: #6c757d;
+    display: flex;
+    gap: 1rem;
+}
+
+.post-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: box-shadow 0.2s;
+}
+
+.post-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.author-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.author-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.author-details strong a {
+    color: #333;
+    text-decoration: none;
+}
+
+.post-meta {
+    font-size: 0.85rem;
+    color: #6c757d;
+    display: flex;
+    gap: 1rem;
+}
+
+.post-category a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.post-image {
+    margin-bottom: 1rem;
+}
+
+.post-image img {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.post-content h3 {
+    margin-bottom: 0.75rem;
+}
+
+.post-content h3 a {
+    color: #333;
+    text-decoration: none;
+}
+
+.post-content h3 a:hover {
+    color: #007bff;
+}
+
+.post-excerpt {
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.post-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.social-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.post-stats {
+    font-size: 0.85rem;
+    color: #6c757d;
+    display: flex;
+    gap: 1rem;
+}
+
+.no-posts {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+
+@media (max-width: 768px) {
+    .feed-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .post-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .post-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .social-actions {
+        justify-content: center;
+    }
+    
+    .suggestions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

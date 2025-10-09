@@ -11,4 +11,4 @@ from flask import Blueprint
 bp = Blueprint('admin', __name__)
 
 # Import routes to register them with the blueprint
-from app.blueprints.admin import routes
+from app.blueprints.admin import routes, cache_routes

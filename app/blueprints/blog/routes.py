@@ -12,7 +12,7 @@ This demonstrates Flask blueprint route organization and proper
 separation of concerns in a modular application structure.
 """
 
-from flask import render_template, request, redirect, url_for, flash, current_app
+from flask import render_template, request, redirect, url_for, flash, current_app, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -25,6 +25,8 @@ from app.blueprints.blog import bp
 from app.extensions import db, socketio
 from app.models.blog import Post, Comment, Category
 from app.models.user import User
+from app.models.like import PostLike
+from app.models.follow import Follow
 
 
 # Utility functions for file handling
@@ -113,27 +115,47 @@ def index():
     category_id = request.args.get('category', type=int)
     per_page = 5  # Posts per page
     
-    # Build query based on filters
-    query = Post.query
+    # Import BlogService here to avoid circular imports
+    from app.services.blog_service import BlogService
     
     if search_query:
-        # Search in title and content
-        query = query.filter(
-            db.or_(
-                Post.title.contains(search_query),
-                Post.content.contains(search_query)
-            )
+        # Use cached search for search queries
+        result = BlogService.search_posts_with_caching(
+            query=search_query,
+            page=page,
+            per_page=per_page
         )
+        posts_data = result['posts']
+        pagination_data = result['pagination']
+        
+        # Create a mock pagination object for template compatibility
+        class MockPagination:
+            def __init__(self, data):
+                for key, value in data.items():
+                    setattr(self, key, value)
+                self.items = posts_data
+        
+        posts = MockPagination(pagination_data)
+    else:
+        # Use cached posts listing
+        result = BlogService.get_posts_with_caching(
+            page=page,
+            per_page=per_page,
+            category_id=category_id
+        )
+        posts_data = result['posts']
+        pagination_data = result['pagination']
+        
+        # Create a mock pagination object for template compatibility
+        class MockPagination:
+            def __init__(self, data):
+                for key, value in data.items():
+                    setattr(self, key, value)
+                self.items = posts_data
+        
+        posts = MockPagination(pagination_data)
     
-    if category_id:
-        query = query.filter_by(category_id=category_id)
-    
-    # Apply pagination
-    posts = query.order_by(Post.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-    
-    # Get categories for filter dropdown
+    # Get categories for filter dropdown (could also be cached)
     categories = Category.query.order_by(Category.name).all()
     
     return render_template('blog/index.html', 
@@ -175,7 +197,17 @@ def search():
 @bp.route('/post/<int:id>', methods=['GET', 'POST'])
 def post_detail(id):
     """Display single post with comments and handle new comments"""
-    post = Post.query.get_or_404(id)
+    # Import BlogService here to avoid circular imports
+    from app.services.blog_service import BlogService
+    
+    # Get post with caching
+    post = BlogService.get_post_with_caching(id)
+    if not post:
+        abort(404)
+    
+    # Increment view count for non-author views (using service method)
+    if not current_user.is_authenticated or current_user.id != post.user_id:
+        BlogService.increment_post_views(id)
     
     if request.method == 'POST' and current_user.is_authenticated:
         content = request.form.get('content')
@@ -220,11 +252,28 @@ def post_detail(id):
         else:
             flash('Please enter a comment.', 'error')
     
-    comments = Comment.query.filter_by(post_id=id).order_by(Comment.created_at.desc()).all()
+    # Get comments with caching
+    comments_result = BlogService.get_post_comments_with_caching(id, page=1, per_page=50)
+    comments = comments_result['comments']
+    
+    # Get social sharing data
+    social_data = post.get_social_share_data()
+    
+    # Check if current user likes this post
+    user_likes_post = post.is_liked_by(current_user) if current_user.is_authenticated else False
+    
+    # Check if current user follows the post author
+    user_follows_author = (current_user.is_following(post.author) 
+                          if current_user.is_authenticated and current_user.id != post.user_id 
+                          else False)
+    
     return render_template('blog/post_detail.html', 
                          title=post.title, 
                          post=post, 
-                         comments=comments)
+                         comments=comments,
+                         social_data=social_data,
+                         user_likes_post=user_likes_post,
+                         user_follows_author=user_follows_author)
 
 
 @bp.route('/create', methods=['GET', 'POST'])
@@ -390,3 +439,180 @@ def delete_comment(id):
     
     flash('Comment has been deleted.', 'success')
     return redirect(url_for('blog.post_detail', id=post_id))
+
+
+# Social Features Routes
+
+@bp.route('/post/<int:id>/like', methods=['POST'])
+@login_required
+def like_post(id):
+    """Like or unlike a post via AJAX"""
+    from flask import jsonify
+    
+    post = Post.query.get_or_404(id)
+    
+    # Check if already liked
+    if post.is_liked_by(current_user):
+        # Unlike the post
+        success = PostLike.unlike_post(current_user, post)
+        if success:
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'liked': False,
+                'like_count': post.like_count,
+                'message': 'Post unliked successfully'
+            })
+    else:
+        # Like the post
+        like = PostLike.like_post(current_user, post)
+        if like:
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'liked': True,
+                'like_count': post.like_count,
+                'message': 'Post liked successfully'
+            })
+    
+    return jsonify({
+        'success': False,
+        'message': 'Unable to process like/unlike'
+    }), 400
+
+
+@bp.route('/user/<username>/follow', methods=['POST'])
+@login_required
+def follow_user(username):
+    """Follow or unfollow a user via AJAX"""
+    from flask import jsonify
+    
+    user = User.query.filter_by(username=username).first_or_404()
+    
+    # Prevent self-following
+    if user.id == current_user.id:
+        return jsonify({
+            'success': False,
+            'message': 'You cannot follow yourself'
+        }), 400
+    
+    # Check if already following
+    if current_user.is_following(user):
+        # Unfollow the user
+        success = current_user.unfollow(user)
+        if success:
+            return jsonify({
+                'success': True,
+                'following': False,
+                'follower_count': user.follower_count,
+                'message': f'You are no longer following {user.username}'
+            })
+    else:
+        # Follow the user
+        success = current_user.follow(user)
+        if success:
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'following': True,
+                'follower_count': user.follower_count,
+                'message': f'You are now following {user.username}'
+            })
+    
+    return jsonify({
+        'success': False,
+        'message': 'Unable to process follow/unfollow'
+    }), 400
+
+
+@bp.route('/feed')
+@login_required
+def personalized_feed():
+    """Display personalized feed based on followed users"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    
+    # Get posts from followed users
+    followed_posts = current_user.get_followed_posts()
+    
+    # If user doesn't follow anyone, show popular posts
+    if followed_posts.count() == 0:
+        posts = Post.get_popular_posts(limit=per_page * 3)
+        feed_type = 'popular'
+        message = "You're not following anyone yet. Here are some popular posts to get you started!"
+    else:
+        posts = followed_posts
+        feed_type = 'personalized'
+        message = None
+    
+    # Apply pagination
+    posts = posts.paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    # Get follow suggestions
+    suggestions = Follow.get_follow_suggestions(current_user, limit=5).all()
+    
+    return render_template('blog/feed.html',
+                         title='Your Feed',
+                         posts=posts,
+                         feed_type=feed_type,
+                         message=message,
+                         suggestions=suggestions)
+
+
+@bp.route('/trending')
+def trending_posts():
+    """Display trending posts with caching"""
+    page = request.args.get('page', 1, type=int)
+    days = request.args.get('days', 7, type=int)
+    per_page = 10
+    
+    # Validate days parameter
+    if days not in [1, 7, 30]:
+        days = 7
+    
+    # Import BlogService here to avoid circular imports
+    from app.services.blog_service import BlogService
+    
+    # Use cached trending posts
+    trending_posts_list = BlogService.get_trending_posts(days=days, limit=per_page * 5)
+    
+    # Manual pagination for cached results
+    total = len(trending_posts_list)
+    start = (page - 1) * per_page
+    end = start + per_page
+    posts_for_page = trending_posts_list[start:end]
+    
+    # Create a mock pagination object for template compatibility
+    class MockPagination:
+        def __init__(self, items, page, per_page, total):
+            self.items = items
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = (total + per_page - 1) // per_page
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1 if self.has_prev else None
+            self.next_num = page + 1 if self.has_next else None
+    
+    posts = MockPagination(posts_for_page, page, per_page, total)
+    
+    return render_template('blog/trending.html',
+                         title=f'Trending Posts (Last {days} days)',
+                         posts=posts,
+                         days=days)
+
+
+@bp.route('/post/<slug>')
+def post_by_slug(slug):
+    """Display post by slug for SEO-friendly URLs"""
+    post = Post.query.filter_by(slug=slug).first_or_404()
+    
+    # Increment view count
+    post.view_count += 1
+    db.session.commit()
+    
+    # Redirect to the main post detail view with the ID
+    return redirect(url_for('blog.post_detail', id=post.id))

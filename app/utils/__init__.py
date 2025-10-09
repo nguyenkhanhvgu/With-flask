@@ -31,6 +31,16 @@ from .decorators import (
     
     # Advanced access control decorators
     owner_or_permission_required,
+    
+    # Performance and caching decorators
+    cache_result,
+    cache_page,
+    invalidate_cache,
+    timing_decorator,
+    performance_monitor,
+    validate_json_input,
+    sanitize_input,
+    rate_limit_per_user,
 )
 
 __all__ = [
@@ -57,4 +67,14 @@ __all__ = [
     
     # Advanced access control decorators
     'owner_or_permission_required',
+    
+    # Performance and caching decorators
+    'cache_result',
+    'cache_page',
+    'invalidate_cache',
+    'timing_decorator',
+    'performance_monitor',
+    'validate_json_input',
+    'sanitize_input',
+    'rate_limit_per_user',
 ]

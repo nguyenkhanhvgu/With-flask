@@ -1,5 +1,70 @@
 {% extends "base.html" %}
 
+{% block head %}
+<!-- Open Graph Meta Tags for Social Sharing -->
+<meta property="og:title" content="{{ social_data.title }}">
+<meta property="og:description" content="{{ social_data.description }}">
+<meta property="og:url" content="{{ social_data.url }}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Flask Blog">
+{% if social_data.image %}
+<meta property="og:image" content="{{ request.url_root.rstrip('/') }}{{ social_data.image }}">
+<meta property="og:image:alt" content="{{ post.title }}">
+{% endif %}
+<meta property="article:author" content="{{ social_data.author }}">
+<meta property="article:published_time" content="{{ social_data.published_time }}">
+{% if social_data.modified_time %}
+<meta property="article:modified_time" content="{{ social_data.modified_time }}">
+{% endif %}
+{% if post.category %}
+<meta property="article:section" content="{{ post.category.name }}">
+{% endif %}
+
+<!-- Twitter Card Meta Tags -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ social_data.title }}">
+<meta name="twitter:description" content="{{ social_data.description }}">
+{% if social_data.image %}
+<meta name="twitter:image" content="{{ request.url_root.rstrip('/') }}{{ social_data.image }}">
+{% endif %}
+
+<!-- Additional SEO Meta Tags -->
+<meta name="description" content="{{ social_data.description }}">
+<meta name="author" content="{{ social_data.author }}">
+<link rel="canonical" href="{{ social_data.url }}">
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "{{ social_data.title }}",
+  "description": "{{ social_data.description }}",
+  "author": {
+    "@type": "Person",
+    "name": "{{ social_data.author }}",
+    "url": "{{ url_for('main.user_profile', username=post.author.username, _external=True) }}"
+  },
+  "datePublished": "{{ social_data.published_time }}",
+  {% if social_data.modified_time %}
+  "dateModified": "{{ social_data.modified_time }}",
+  {% endif %}
+  "url": "{{ social_data.url }}",
+  {% if social_data.image %}
+  "image": "{{ request.url_root.rstrip('/') }}{{ social_data.image }}",
+  {% endif %}
+  "publisher": {
+    "@type": "Organization",
+    "name": "Flask Blog"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "{{ social_data.url }}"
+  }
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="content-section">
     <article class="post-detail">
@@ -43,7 +108,116 @@
         </div>
         
         <footer class="post-footer">
-            <a href="{{ url_for('blog.index') }}" class="btn btn-secondary">← Back to Blog</a>
+            <div class="post-social-actions">
+                {% if current_user.is_authenticated %}
+                <!-- Like Button -->
+                <button class="btn btn-outline-danger like-btn" 
+                        data-post-id="{{ post.id }}"
+                        onclick="likePost({{ post.id }}, this)"
+                        title="{% if user_likes_post %}Unlike{% else %}Like{% endif %}">
+                    <i class="{% if user_likes_post %}fas{% else %}far{% endif %} fa-heart"></i>
+                    <span class="like-count">{{ post.like_count }}</span>
+                    <span class="like-text">{% if user_likes_post %}Liked{% else %}Like{% endif %}</span>
+                </button>
+                
+                <!-- Follow Author Button -->
+                {% if current_user.id != post.user_id %}
+                <button class="btn btn-outline-primary follow-btn" 
+                        data-username="{{ post.author.username }}"
+                        onclick="followUser('{{ post.author.username }}', this)"
+                        style="{% if user_follows_author %}display: none;{% endif %}">
+                    <i class="fas fa-user-plus"></i>
+                    Follow {{ post.author.username }}
+                </button>
+                <button class="btn btn-primary unfollow-btn" 
+                        data-username="{{ post.author.username }}"
+                        onclick="followUser('{{ post.author.username }}', this)"
+                        style="{% if not user_follows_author %}display: none;{% endif %}">
+                    <i class="fas fa-user-check"></i>
+                    Following {{ post.author.username }}
+                </button>
+                {% endif %}
+                {% else %}
+                <!-- Like Button for Anonymous Users -->
+                <span class="btn btn-outline-danger disabled">
+                    <i class="far fa-heart"></i>
+                    <span>{{ post.like_count }}</span>
+                    <span>Likes</span>
+                </span>
+                {% endif %}
+                
+                <!-- Share Button -->
+                <div class="share-dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" 
+                            type="button" 
+                            id="shareDropdown" 
+                            data-bs-toggle="dropdown" 
+                            aria-expanded="false">
+                        <i class="fas fa-share"></i>
+                        Share
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="shareDropdown">
+                        <li>
+                            <a class="dropdown-item" 
+                               href="https://twitter.com/intent/tweet?text={{ social_data.title|urlencode }}&url={{ social_data.url|urlencode }}"
+                               target="_blank">
+                                <i class="fab fa-twitter"></i> Twitter
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" 
+                               href="https://www.facebook.com/sharer/sharer.php?u={{ social_data.url|urlencode }}"
+                               target="_blank">
+                                <i class="fab fa-facebook"></i> Facebook
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" 
+                               href="https://www.linkedin.com/sharing/share-offsite/?url={{ social_data.url|urlencode }}"
+                               target="_blank">
+                                <i class="fab fa-linkedin"></i> LinkedIn
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" 
+                               href="https://reddit.com/submit?url={{ social_data.url|urlencode }}&title={{ social_data.title|urlencode }}"
+                               target="_blank">
+                                <i class="fab fa-reddit"></i> Reddit
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" 
+                               href="#" 
+                               onclick="copyToClipboard('{{ social_data.url }}'); return false;">
+                                <i class="fas fa-link"></i> Copy Link
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="post-stats">
+                <span class="stat-item">
+                    <i class="fas fa-eye"></i>
+                    {{ post.view_count }} views
+                </span>
+                <span class="stat-item">
+                    <i class="fas fa-clock"></i>
+                    {{ social_data.reading_time }} min read
+                </span>
+                <span class="stat-item">
+                    <i class="fas fa-calendar"></i>
+                    {{ post.created_at.strftime('%B %d, %Y') }}
+                </span>
+            </div>
+            
+            <div class="post-navigation">
+                <a href="{{ url_for('blog.index') }}" class="btn btn-secondary">← Back to Blog</a>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('blog.feed') }}" class="btn btn-outline-primary">Your Feed</a>
+                {% endif %}
+            </div>
         </footer>
     </article>
     
@@ -327,6 +501,131 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('WebSocket features disabled for anonymous users');
     {% endif %}
 });
+
+// Social interaction functions
+function likePost(postId, button) {
+    fetch(`/blog/post/${postId}/like`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const icon = button.querySelector('i');
+            const countSpan = button.querySelector('.like-count');
+            const textSpan = button.querySelector('.like-text');
+            
+            if (data.liked) {
+                icon.className = 'fas fa-heart';
+                button.title = 'Unlike';
+                textSpan.textContent = 'Liked';
+                button.classList.remove('btn-outline-danger');
+                button.classList.add('btn-danger');
+            } else {
+                icon.className = 'far fa-heart';
+                button.title = 'Like';
+                textSpan.textContent = 'Like';
+                button.classList.remove('btn-danger');
+                button.classList.add('btn-outline-danger');
+            }
+            
+            countSpan.textContent = data.like_count;
+            showNotification(data.message);
+        } else {
+            alert(data.message || 'Error processing like');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error processing like');
+    });
+}
+
+function followUser(username, button) {
+    fetch(`/blog/user/${username}/follow`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const followBtn = document.querySelector('.follow-btn');
+            const unfollowBtn = document.querySelector('.unfollow-btn');
+            
+            if (data.following) {
+                followBtn.style.display = 'none';
+                unfollowBtn.style.display = 'inline-block';
+            } else {
+                followBtn.style.display = 'inline-block';
+                unfollowBtn.style.display = 'none';
+            }
+            
+            showNotification(data.message);
+        } else {
+            alert(data.message || 'Error processing follow');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error processing follow');
+    });
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('Link copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showNotification('Link copied to clipboard!');
+    });
+}
+
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'social-notification';
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '1';
+    }, 100);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
 </script>
 
 <style>
@@ -526,6 +825,98 @@ document.addEventListener('DOMContentLoaded', function() {
     margin-bottom: 1rem;
 }
 
+/* Social Features Styles */
+.post-social-actions {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.like-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.like-btn:hover {
+    transform: scale(1.05);
+}
+
+.like-btn.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.follow-btn, .unfollow-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.unfollow-btn:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.share-dropdown .dropdown-menu {
+    min-width: 200px;
+}
+
+.share-dropdown .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+}
+
+.share-dropdown .dropdown-item i {
+    width: 20px;
+    text-align: center;
+}
+
+.share-dropdown .dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.post-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.stat-item i {
+    color: #007bff;
+}
+
+.post-navigation {
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.social-notification {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
 @media (max-width: 768px) {
     .comment-header {
         flex-direction: column;
@@ -540,6 +931,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     .post-actions {
         flex-direction: column;
+    }
+    
+    .post-social-actions {
+        justify-content: center;
+    }
+    
+    .post-stats {
+        justify-content: center;
+        text-align: center;
+    }
+    
+    .post-navigation {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
 </style>
