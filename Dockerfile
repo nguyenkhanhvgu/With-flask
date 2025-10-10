@@ -56,11 +56,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy application code
 COPY . .
 
-# Copy production configuration files
+# Copy production configuration files (if they don't exist)
 COPY gunicorn.conf.py wsgi.py ./
 
-# Copy deployment scripts and make them executable
-COPY scripts/ ./scripts/
+# Make deployment scripts executable
 RUN chmod +x ./scripts/*.sh
 
 # Create necessary directories and set permissions
