@@ -22,7 +22,7 @@
                 <li><a href="{{ url_for('main.home') }}">Home</a></li>
                 <li><a href="{{ url_for('blog.index') }}">Blog</a></li>
                 {% if current_user.is_authenticated %}
-                <li><a href="{{ url_for('blog.feed') }}">Your Feed</a></li>
+                <li><a href="{{ url_for('blog.personalized_feed') }}">Your Feed</a></li>
                 {% endif %}
                 <li><a href="{{ url_for('blog.trending_posts') }}">Trending</a></li>
                 <li><a href="{{ url_for('blog.categories') }}">Categories</a></li>
