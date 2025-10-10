@@ -1,377 +1,269 @@
 #!/usr/bin/env python3
 """
-Practical Examples of Performance and Caching Decorators
+Comprehensive examples of using performance and caching decorators.
 
-This file demonstrates how to use the new decorators in real blog application scenarios.
-These examples show best practices for caching, performance monitoring, and input validation.
+This file demonstrates how to use all the performance and caching decorators
+implemented in app/utils/decorators.py with practical examples.
 """
 
-from flask import request, jsonify, render_template, g
-from flask_login import current_user
+from flask import Flask, request, jsonify, render_template_string
 from app.utils.decorators import (
-    cache_result, cache_page, invalidate_cache, timing_decorator,
-    performance_monitor, validate_json_input, sanitize_input, rate_limit_per_user
+    cache_result,
+    cache_page,
+    invalidate_cache,
+    timing_decorator,
+    performance_monitor,
+    validate_json_input,
+    sanitize_input,
+    rate_limit_per_user,
+    memoize,
+    cache_control,
+    compress_response
 )
-from app.models import Post, User, Comment
-from app.extensions import db
+import time
+import logging
 
+# Configure logging to see timing information
+logging.basicConfig(level=logging.INFO)
 
-# =============================================================================
-# CACHING EXAMPLES
-# =============================================================================
-
-@cache_result(timeout=600, key_prefix='trending_posts')
-def get_trending_posts(limit=10):
-    """
-    Get trending posts with caching.
-    
-    This expensive operation calculates trending posts based on views,
-    likes, and comments. Results are cached for 10 minutes.
-    """
-    # Simulate expensive trending algorithm
-    posts = Post.query.join(Post.views).group_by(Post.id)\
-        .order_by(db.func.count(Post.views).desc())\
-        .limit(limit).all()
-    return posts
-
-
-@cache_result(timeout=300, unless=lambda: current_user.is_authenticated)
-def get_public_posts_count():
-    """
-    Cache public post count only for anonymous users.
-    
-    Authenticated users get real-time counts, while anonymous
-    users get cached results for better performance.
-    """
-    return Post.query.filter_by(published=True).count()
-
-
-@cache_page(timeout=1800, key_prefix='category_page', vary_on_user=False)
-def category_posts_view(category_id):
-    """
-    Cache entire category page for 30 minutes.
-    
-    Category pages don't change frequently and can be safely
-    cached for all users.
-    """
-    category = Category.query.get_or_404(category_id)
-    posts = Post.query.filter_by(category_id=category_id, published=True)\
-        .order_by(Post.created_at.desc()).all()
-    return render_template('category_posts.html', category=category, posts=posts)
-
-
-@invalidate_cache(cache_keys=['trending_posts:get_trending_posts'])
-def create_new_post(title, content, user_id):
-    """
-    Create a new post and invalidate trending posts cache.
-    
-    When new posts are created, we need to clear the trending
-    posts cache so users see updated content.
-    """
-    post = Post(title=title, content=content, user_id=user_id)
-    db.session.add(post)
-    db.session.commit()
-    return post
-
-
-# =============================================================================
-# PERFORMANCE MONITORING EXAMPLES
-# =============================================================================
-
+# Example 1: Caching expensive database queries
+@cache_result(timeout=600, key_prefix='user_posts')
 @timing_decorator(include_args=True)
-def search_posts(query, page=1):
+def get_user_posts(user_id):
     """
-    Search posts with execution time logging.
-    
-    Search operations can be slow, so we monitor their
-    performance to identify optimization opportunities.
+    Example of caching expensive database operations.
+    In a real app, this would query the database.
     """
-    posts = Post.query.filter(
-        Post.title.contains(query) | Post.content.contains(query)
-    ).paginate(page=page, per_page=10)
-    return posts
+    # Simulate expensive database query
+    time.sleep(0.1)
+    return [
+        {'id': 1, 'title': f'Post 1 by user {user_id}', 'content': 'Content 1'},
+        {'id': 2, 'title': f'Post 2 by user {user_id}', 'content': 'Content 2'}
+    ]
 
 
-@performance_monitor(threshold=2.0)
-def generate_user_analytics(user_id):
+# Example 2: Performance monitoring with alerts
+def slow_query_alert(func_name, execution_time):
+    """Alert callback for slow operations."""
+    print(f"🚨 ALERT: {func_name} took {execution_time:.2f}s (too slow!)")
+
+@performance_monitor(threshold=0.05, alert_callback=slow_query_alert)
+@timing_decorator()
+def complex_analytics(data_size=1000):
     """
-    Generate user analytics with performance monitoring.
-    
-    This operation should complete within 2 seconds.
-    If it takes longer, an alert is triggered.
+    Example of performance monitoring for complex operations.
     """
-    user = User.query.get(user_id)
-    
-    # Simulate complex analytics calculation
-    analytics = {
-        'total_posts': user.posts.count(),
-        'total_comments': Comment.query.filter_by(user_id=user_id).count(),
-        'avg_post_views': db.session.query(db.func.avg(PostView.id))\
-            .join(Post).filter(Post.user_id == user_id).scalar() or 0,
-        'follower_count': user.followers.count(),
-        'following_count': user.following.count()
-    }
-    
-    return analytics
+    # Simulate complex calculation
+    total = sum(range(data_size))
+    time.sleep(0.1)  # This will trigger the alert
+    return {'total': total, 'processed': data_size}
 
 
-def slow_operation_alert(func_name, execution_time):
+# Example 3: Memoization for recursive functions
+@memoize(timeout=3600)
+def fibonacci(n):
     """
-    Alert callback for slow operations.
-    
-    This function is called when operations exceed performance thresholds.
-    In production, this could send alerts to monitoring systems.
+    Example of memoization for expensive recursive calculations.
     """
-    print(f"PERFORMANCE ALERT: {func_name} took {execution_time:.2f} seconds")
-    # In production: send to monitoring system, log to file, etc.
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
 
 
-@performance_monitor(threshold=1.0, alert_callback=slow_operation_alert)
-def complex_database_query():
-    """
-    Complex query with custom alert handling.
-    
-    This demonstrates how to use custom alert callbacks
-    for different types of operations.
-    """
-    # Simulate complex query
-    result = db.session.execute("""
-        SELECT u.username, COUNT(p.id) as post_count, AVG(pv.time_spent) as avg_time
-        FROM users u
-        LEFT JOIN posts p ON u.id = p.user_id
-        LEFT JOIN post_views pv ON p.id = pv.post_id
-        GROUP BY u.id, u.username
-        ORDER BY post_count DESC
-        LIMIT 10
-    """).fetchall()
-    
-    return result
-
-
-# =============================================================================
-# INPUT VALIDATION EXAMPLES
-# =============================================================================
-
+# Example 4: Input validation and sanitization
 @validate_json_input(required_fields=['title', 'content'])
-@sanitize_input(fields=['title', 'content'], max_length=1000)
-def api_create_post():
+@sanitize_input(fields=['title', 'content'], strip_html=True, max_length=200)
+def create_blog_post():
     """
-    API endpoint for creating posts with validation and sanitization.
-    
-    This demonstrates combining multiple decorators for comprehensive
-    input handling in API endpoints.
+    Example API endpoint with input validation and sanitization.
     """
-    # Get sanitized data from g object (set by sanitize_input decorator)
+    from flask import g
     data = g.sanitized_json
     
-    post = Post(
-        title=data['title'],
-        content=data['content'],
-        user_id=current_user.id
-    )
-    
-    db.session.add(post)
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Post created successfully',
-        'post_id': post.id
-    })
-
-
-# Schema for post updates
-POST_UPDATE_SCHEMA = {
-    'title': {'type': 'string', 'maxlength': 200, 'required': True},
-    'content': {'type': 'string', 'minlength': 10, 'required': True},
-    'published': {'type': 'boolean'},
-    'category_id': {'type': 'integer'}
-}
-
-@validate_json_input(schema=POST_UPDATE_SCHEMA)
-def api_update_post(post_id):
-    """
-    API endpoint for updating posts with schema validation.
-    
-    This demonstrates using a schema for comprehensive
-    input validation including type checking and length limits.
-    """
-    post = Post.query.get_or_404(post_id)
-    data = request.get_json()
-    
-    # Update post with validated data
-    post.title = data['title']
-    post.content = data['content']
-    
-    if 'published' in data:
-        post.published = data['published']
-    
-    if 'category_id' in data:
-        post.category_id = data['category_id']
-    
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Post updated successfully',
+    # Process the clean, validated data
+    return {
+        'status': 'success',
         'post': {
-            'id': post.id,
-            'title': post.title,
-            'published': post.published
+            'title': data['title'],
+            'content': data['content'],
+            'created_at': time.time()
         }
-    })
+    }
 
 
-@sanitize_input(fields=['comment'], strip_html=True, max_length=500)
-def add_comment_to_post(post_id):
-    """
-    Add comment with input sanitization.
-    
-    Comments need HTML stripping and length limits to prevent
-    abuse and maintain data quality.
-    """
-    post = Post.query.get_or_404(post_id)
-    
-    # Get sanitized comment from form data
-    comment_text = request.form.get('comment', '').strip()
-    
-    if not comment_text:
-        return jsonify({'error': 'Comment cannot be empty'}), 400
-    
-    comment = Comment(
-        content=comment_text,
-        post_id=post_id,
-        user_id=current_user.id
-    )
-    
-    db.session.add(comment)
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Comment added successfully',
-        'comment_id': comment.id
-    })
-
-
-# =============================================================================
-# RATE LIMITING EXAMPLES
-# =============================================================================
-
-@rate_limit_per_user(max_requests=5, per_seconds=300)
-def create_post_endpoint():
-    """
-    Create post with rate limiting.
-    
-    Users can create maximum 5 posts per 5 minutes
-    to prevent spam and abuse.
-    """
-    # Post creation logic here
-    return jsonify({'message': 'Post created'})
-
-
-@rate_limit_per_user(
-    max_requests=10, 
-    per_seconds=60,
-    key_func=lambda: f"comment_{request.view_args.get('post_id')}"
-)
-def add_comment_endpoint(post_id):
-    """
-    Add comment with per-post rate limiting.
-    
-    Users can add maximum 10 comments per post per minute.
-    This prevents comment spam on individual posts.
-    """
-    # Comment creation logic here
-    return jsonify({'message': 'Comment added'})
-
-
-@rate_limit_per_user(max_requests=20, per_seconds=3600)
-def api_search_posts():
-    """
-    Search API with rate limiting.
-    
-    Search operations are expensive, so we limit users
-    to 20 searches per hour.
-    """
-    query = request.args.get('q', '')
-    if not query:
-        return jsonify({'error': 'Search query required'}), 400
-    
-    # Search logic here
-    results = search_posts(query)
-    
-    return jsonify({
-        'query': query,
-        'results': [{'id': p.id, 'title': p.title} for p in results.items]
-    })
-
-
-# =============================================================================
-# COMBINED DECORATOR EXAMPLES
-# =============================================================================
-
-@cache_result(timeout=300, key_prefix='user_stats')
+# Example 5: Rate limiting for user actions
+@rate_limit_per_user(max_requests=5, per_seconds=60)
 @timing_decorator()
-@performance_monitor(threshold=1.5)
+def send_email_notification(user_id, message):
+    """
+    Example of rate-limited operation (email sending).
+    """
+    # Simulate email sending
+    time.sleep(0.05)
+    return {'status': 'email_sent', 'user_id': user_id, 'message': message}
+
+
+# Example 6: Page caching with user-specific content
+@cache_page(timeout=300, key_prefix='dashboard', vary_on_user=True)
+@cache_control(max_age=300, public=False)
+def user_dashboard(user_id):
+    """
+    Example of caching user-specific pages.
+    """
+    # Simulate expensive page rendering
+    time.sleep(0.1)
+    
+    user_data = get_user_posts(user_id)  # This will use cached result
+    
+    return f"""
+    <html>
+        <head><title>Dashboard for User {user_id}</title></head>
+        <body>
+            <h1>User {user_id} Dashboard</h1>
+            <p>Posts: {len(user_data)}</p>
+            <p>Generated at: {time.time()}</p>
+        </body>
+    </html>
+    """
+
+
+# Example 7: Cache invalidation after data changes
+@invalidate_cache(cache_keys=['user_posts:get_user_posts'])
+@timing_decorator()
+def update_user_post(user_id, post_id, new_content):
+    """
+    Example of cache invalidation after data modification.
+    """
+    # Simulate database update
+    time.sleep(0.05)
+    
+    # After updating, the cache for user posts is invalidated
+    return {
+        'status': 'updated',
+        'user_id': user_id,
+        'post_id': post_id,
+        'content': new_content
+    }
+
+
+# Example 8: Response compression for large data
+@compress_response(compression_level=6, min_size=500)
+@cache_result(timeout=1800, key_prefix='large_dataset')
+def get_large_dataset():
+    """
+    Example of response compression for large API responses.
+    """
+    # Generate large dataset
+    data = {
+        'items': [
+            {'id': i, 'name': f'Item {i}', 'description': f'Description for item {i}' * 10}
+            for i in range(100)
+        ],
+        'metadata': {
+            'total': 100,
+            'generated_at': time.time(),
+            'version': '1.0'
+        }
+    }
+    return data
+
+
+# Example 9: Combining multiple decorators
+@cache_result(timeout=300, key_prefix='user_stats')
+@timing_decorator(include_args=True)
+@performance_monitor(threshold=0.2)
 def get_user_statistics(user_id):
     """
-    Get user statistics with caching, timing, and performance monitoring.
-    
-    This demonstrates how multiple decorators can be combined
-    for comprehensive functionality.
+    Example combining caching, timing, and performance monitoring.
     """
-    user = User.query.get(user_id)
-    if not user:
-        return None
+    # Simulate complex statistics calculation
+    time.sleep(0.1)
     
-    stats = {
-        'posts_count': user.posts.count(),
-        'comments_count': Comment.query.filter_by(user_id=user_id).count(),
-        'followers_count': user.followers.count(),
-        'following_count': user.following.count(),
-        'total_post_views': sum(post.view_count for post in user.posts)
+    posts = get_user_posts(user_id)  # Uses cached result
+    
+    return {
+        'user_id': user_id,
+        'total_posts': len(posts),
+        'avg_post_length': sum(len(post['content']) for post in posts) / len(posts) if posts else 0,
+        'calculated_at': time.time()
     }
-    
-    return stats
 
 
-@validate_json_input(required_fields=['email', 'username'])
-@sanitize_input(fields=['username', 'bio'], max_length=200)
-@rate_limit_per_user(max_requests=3, per_seconds=3600)
-def update_user_profile():
+# Example 10: Schema-based validation
+post_schema = {
+    'title': {'type': 'string', 'maxlength': 100, 'required': True},
+    'content': {'type': 'string', 'minlength': 10, 'required': True},
+    'category': {'type': 'string', 'maxlength': 50},
+    'tags': {'type': 'list'}
+}
+
+@validate_json_input(schema=post_schema)
+@sanitize_input(fields=['title', 'content', 'category'], max_length=1000)
+def create_validated_post():
     """
-    Update user profile with validation, sanitization, and rate limiting.
-    
-    This endpoint combines all input handling decorators for
-    comprehensive protection and data quality.
+    Example with comprehensive schema validation.
     """
+    from flask import g
     data = g.sanitized_json
     
-    # Update user profile logic
-    current_user.username = data['username']
-    current_user.email = data['email']
+    return {
+        'status': 'created',
+        'post': data,
+        'validation': 'passed'
+    }
+
+
+def demonstrate_decorators():
+    """
+    Demonstrate all the decorators with example usage.
+    """
+    print("🚀 Demonstrating Performance and Caching Decorators\n")
     
-    if 'bio' in data:
-        current_user.bio = data['bio']
+    # Example 1: Caching
+    print("1. Testing cache_result decorator:")
+    start_time = time.time()
+    result1 = get_user_posts(123)
+    first_call_time = time.time() - start_time
     
-    db.session.commit()
+    start_time = time.time()
+    result2 = get_user_posts(123)  # Should be cached
+    second_call_time = time.time() - start_time
     
-    return jsonify({
-        'message': 'Profile updated successfully',
-        'user': {
-            'id': current_user.id,
-            'username': current_user.username,
-            'email': current_user.email
-        }
-    })
+    print(f"   First call: {first_call_time:.3f}s")
+    print(f"   Second call: {second_call_time:.3f}s (cached)")
+    print(f"   Speed improvement: {first_call_time/second_call_time:.1f}x\n")
+    
+    # Example 2: Performance monitoring
+    print("2. Testing performance_monitor decorator:")
+    analytics_result = complex_analytics(5000)
+    print(f"   Result: {analytics_result}\n")
+    
+    # Example 3: Memoization
+    print("3. Testing memoize decorator:")
+    start_time = time.time()
+    fib_result = fibonacci(10)
+    fib_time = time.time() - start_time
+    print(f"   fibonacci(10) = {fib_result} (calculated in {fib_time:.3f}s)\n")
+    
+    # Example 4: Statistics with multiple decorators
+    print("4. Testing combined decorators:")
+    stats = get_user_statistics(123)
+    print(f"   User stats: {stats}\n")
+    
+    # Example 5: Large dataset with compression
+    print("5. Testing compress_response decorator:")
+    large_data = get_large_dataset()
+    print(f"   Generated dataset with {len(large_data['items'])} items\n")
+    
+    print("✅ All decorator demonstrations completed successfully!")
+    print("\nImplemented decorators provide:")
+    print("   • Intelligent caching for performance optimization")
+    print("   • Comprehensive performance monitoring and alerting")
+    print("   • Robust input validation and sanitization")
+    print("   • Flexible rate limiting capabilities")
+    print("   • HTTP caching and response compression")
+    print("   • Memoization for expensive calculations")
 
 
 if __name__ == '__main__':
-    print("Performance and Caching Decorators Usage Examples")
-    print("=" * 60)
-    print("\nThis file contains practical examples of how to use")
-    print("the new decorators in a Flask blog application:")
-    print("\n✓ Caching expensive operations (trending posts, analytics)")
-    print("✓ Performance monitoring (search, database queries)")
-    print("✓ Input validation and sanitization (API endpoints)")
-    print("✓ Rate limiting (post creation, comments, search)")
-    print("✓ Combined decorator usage for comprehensive functionality")
-    print("\nSee the code above for detailed implementation examples.")
+    demonstrate_decorators()

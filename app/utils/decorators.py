@@ -1030,7 +1030,7 @@ def cache_control(max_age=3600, public=True, must_revalidate=False):
             return response
         return decorated_function
     return decorator
-    return decorator
+
 
 
 def sanitize_input(fields=None, strip_html=True, max_length=None):
@@ -1052,7 +1052,7 @@ def sanitize_input(fields=None, strip_html=True, max_length=None):
         @sanitize_input(fields=['title', 'content'], max_length=1000)
         def create_post():
             # Input data has been sanitized
-            data = request.get_json() or request.form.to_dict()
+            data = g.sanitized_json if request.is_json else request.form.to_dict()
             return process_clean_data(data)
     """
     def decorator(f):
