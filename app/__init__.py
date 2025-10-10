@@ -111,7 +111,7 @@ def register_blueprints(app):
 
 def register_template_filters(app):
     """
-    Register custom Jinja2 template filters.
+    Register custom Jinja2 template filters and global functions.
     
     Args:
         app (Flask): The Flask application instance
@@ -120,6 +120,12 @@ def register_template_filters(app):
     def nl2br_filter(text):
         """Convert newlines to HTML line breaks"""
         return text.replace('\n', '<br>\n') if text else ''
+    
+    @app.template_global()
+    def csrf_token():
+        """Generate CSRF token for templates"""
+        from flask_wtf.csrf import generate_csrf
+        return generate_csrf()
 
 
 def register_error_handlers(app):

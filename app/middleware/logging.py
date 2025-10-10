@@ -159,7 +159,9 @@ class RequestLoggingMiddleware:
         This method demonstrates structured logging for request tracking
         and shows how to capture relevant request metadata.
         """
-        logger = current_app.logger_requests
+        logger = getattr(current_app, 'logger_requests', None)
+        if not logger:
+            logger = logging.getLogger('flask_blog.requests')
         
         # Gather request information
         request_data = {
@@ -193,7 +195,9 @@ class RequestLoggingMiddleware:
         This method demonstrates how to log response information and
         calculate performance metrics for monitoring.
         """
-        logger = current_app.logger_requests
+        logger = getattr(current_app, 'logger_requests', None)
+        if not logger:
+            logger = logging.getLogger('flask_blog.requests')
         
         # Gather response information
         response_data = {
@@ -236,7 +240,9 @@ class RequestLoggingMiddleware:
         This method demonstrates error logging and exception tracking
         for debugging and monitoring purposes.
         """
-        logger = current_app.logger_requests
+        logger = getattr(current_app, 'logger_requests', None)
+        if not logger:
+            logger = logging.getLogger('flask_blog.requests')
         
         # Gather error information
         error_data = {
