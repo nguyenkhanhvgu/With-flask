@@ -527,7 +527,7 @@ def follow_user(username):
 
 @bp.route('/feed')
 @login_required
-def personalized_feed():
+def feed():
     """Display personalized feed based on followed users"""
     page = request.args.get('page', 1, type=int)
     per_page = 10
@@ -537,16 +537,17 @@ def personalized_feed():
     
     # If user doesn't follow anyone, show popular posts
     if followed_posts.count() == 0:
-        posts = Post.get_popular_posts(limit=per_page * 3)
+        # For popular posts, we need to create a proper query for pagination
+        posts_query = Post.query.order_by(Post.like_count.desc())
         feed_type = 'popular'
         message = "You're not following anyone yet. Here are some popular posts to get you started!"
     else:
-        posts = followed_posts
+        posts_query = followed_posts
         feed_type = 'personalized'
         message = None
     
     # Apply pagination
-    posts = posts.paginate(
+    posts = posts_query.paginate(
         page=page, per_page=per_page, error_out=False
     )
     
